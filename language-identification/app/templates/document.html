@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% from "_macros.html" import lang_badge, percent %}
+{% block title %}{{ doc.filename }}{% endblock %}
+{% block content %}
+<p class="no-print"><a href="{{ url_for('main.view_run', run_id=run.id) }}">← к результатам запуска</a></p>
+<h1>{{ doc.filename }}</h1>
+<div class="actions no-print">
+    <a class="btn btn-secondary" href="{{ url_for('main.run_file', run_id=run.id, filename=doc.filename) }}" target="_blank">Открыть PDF</a>
+    <button class="btn" type="button" onclick="window.print()">Печать</button>
+</div>
+
+{% if doc.error %}
+    <div class="flash flash-error">{{ doc.error }}</div>
+{% else %}
+<div class="stat-grid">
+    <div class="stat"><div class="value">{{ doc.consensus | lang_name }}</div><div class="label">итоговый язык</div></div>
+    <div class="stat"><div class="value">{{ doc.true_language | lang_name if doc.true_language else '—' }}</div><div class="label">истинный язык</div></div>
+    <div class="stat"><div class="value">{{ doc.pages }}</div><div class="label">страниц</div></div>
+    <div class="stat"><div class="value">{{ doc.chars }}</div><div class="label">символов</div></div>
+    <div class="stat"><div class="value">{{ doc.words }}</div><div class="label">слов</div></div>
+</div>
+
+{% for key in run.methods %}
+    {% set r = doc.results[key] %}
+    {% set method = METHODS[key] %}
+    <div class="card">
+        <h2>{{ method.title }}: {{ lang_badge(r.language) }}</h2>
+        <p class="small muted">{{ method.description }}</p>
+        {% if r.details.reason %}<p class="fail">{{ r.details.reason }}</p>{% endif %}
+
+        {% if r.scores %}
+        <table>
+            <thead><tr><th>Язык</th><th class="num">Метрика ({{ method.metric_name }})</th><th></th></tr></thead>
+            <tbody>
+            {% for lang, score in r.scores.items() | sort(attribute='1') %}
+                <tr>
+                    <td>{{ lang | lang_name }}</td>
+                    <td class="num">{{ '%.4f' | format(score) }}</td>
+                    <td>{% if lang == r.language %}<span class="ok">минимум → выбран</span>{% endif %}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+        <p class="small muted">Время работы метода: {{ '%.3f' | format(r.time_ms) }} мс</p>
+
+        {% if key == 'short_words' and r.details.tokens %}
+            <p>Коротких лексем: <strong>{{ r.details.tokens }}</strong>, предложений: <strong>{{ r.details.sentences }}</strong>.
+               Голоса предложений:
+               {% for lang, n in r.details.votes.items() %}{{ lang | lang_name }} — {{ n }}{% if not loop.last %}, {% endif %}{% endfor %}.
+               Покрытие ПОЯ:
+               {% for lang, c in r.details.coverage.items() %}{{ lang | lang_name }} — {{ percent(c) }}{% if not loop.last %}, {% endif %}{% endfor %}.</p>
+            <h3>Наиболее частые короткие слова документа</h3>
+            <table>
+                <thead><tr><th>Лексема</th><th class="num">Частота в документе</th>{% for lang in LANGUAGES %}<th class="num">P в ПОЯ ({{ lang }})</th>{% endfor %}</tr></thead>
+                <tbody>
+                {% for t in r.details.top_tokens %}
+                    <tr>
+                        <td><code>{{ t.token }}</code></td>
+                        <td class="num">{{ t.count }}</td>
+                        {% for lang in LANGUAGES %}
+                            <td class="num">{% if t.probabilities[lang] %}{{ '%.5f' | format(t.probabilities[lang]) }}{% else %}<span class="muted">min</span>{% endif %}</td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+
+        {% if key == 'alphabet' and r.details.letters %}
+            <p>Букв в документе: <strong>{{ r.details.letters }}</strong>. Доля букв вне алфавита языка:
+               {% for lang, share in r.details.outside_alphabet.items() %}{{ lang | lang_name }} — {{ percent(share) }}{% if not loop.last %}, {% endif %}{% endfor %}.</p>
+            <h3>Частоты букв документа и профилей</h3>
+            <table>
+                <thead><tr><th>Буква</th><th class="num">Документ</th>{% for lang in LANGUAGES %}<th class="num">ПОЯ ({{ lang }})</th>{% endfor %}</tr></thead>
+                <tbody>
+                {% for l in r.details.top_letters %}
+                    <tr>
+                        <td><code>{{ l.letter }}</code></td>
+                        <td class="num">{{ percent(l.frequency) }}</td>
+                        {% for lang in LANGUAGES %}<td class="num">{{ percent(l.profiles[lang]) }}</td>{% endfor %}
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+
+        {% if key == 'neural' and r.details.probabilities %}
+            <h3>Выход сети (softmax)</h3>
+            <table>
+                <tbody>
+                {% for lang, p in r.details.probabilities.items() %}
+                    <tr>
+                        <td style="width: 20%">{{ lang | lang_name }}</td>
+                        <td><progress class="bar" value="{{ p }}" max="1"></progress></td>
+                        <td class="num" style="width: 15%">{{ percent(p) }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </div>
+{% endfor %}
+
+<div class="card">
+    <h2>Извлечённый текст (фрагмент)</h2>
+    <pre class="preview">{{ doc.preview }}</pre>
+</div>
+{% endif %}
+{% endblock %}

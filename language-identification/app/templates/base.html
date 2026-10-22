@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Распознавание языка{% endblock %} — LangID</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="topbar no-print">
+    <div class="container topbar-inner">
+        <a class="brand" href="{{ url_for('main.index') }}">LangID</a>
+        <nav>
+            <a href="{{ url_for('main.index') }}">Главная</a>
+            <a href="{{ url_for('main.runs') }}">История</a>
+            <a href="{{ url_for('main.profiles') }}">Профили языков</a>
+            <a href="{{ url_for('main.help_page') }}">Справка</a>
+        </nav>
+    </div>
+</header>
+
+<main class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flashes no-print">
+                {% for category, message in messages %}
+                    <div class="flash flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+</main>
+
+<footer class="container footer">
+    <p>Автоматическое распознавание языка текста · вариант 28 · русский / английский · PDF · методы: коротких слов, алфавитный, нейросетевой</p>
+</footer>
+</body>
+</html>

@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Оценка запроса{% endblock %}
+{% block content %}
+<a href="{{ url_for('main.metrics_overview') }}">&larr; К списку метрик</a>
+<h1>Оценка релевантности запроса</h1>
+
+<div class="card">
+    <form class="search-form" method="get" action="{{ url_for('main.metrics_evaluate') }}">
+        <div class="field">
+            <label for="q">Запрос</label>
+            <input type="text" id="q" name="q" value="{{ query }}">
+        </div>
+        <div class="field" style="flex:0 0 200px;">
+            <label for="mode">Режим</label>
+            <select id="mode" name="mode">
+                <option value="and" {% if mode == "and" %}selected{% endif %}>И (все слова)</option>
+                <option value="or" {% if mode == "or" %}selected{% endif %}>ИЛИ (любое слово)</option>
+            </select>
+        </div>
+        <button class="btn btn-secondary" type="submit">Обновить выдачу</button>
+    </form>
+</div>
+
+{% if results is not none %}
+    {% if computed %}
+    <div class="card">
+        <h2>Метрики для запроса «{{ query }}»</h2>
+        <div class="stat-grid">
+            <div class="stat"><div class="value">{{ "%.3f"|format(computed.precision) }}</div><div class="label">Precision</div></div>
+            <div class="stat"><div class="value">{{ "%.3f"|format(computed.recall) }}</div><div class="label">Recall</div></div>
+            <div class="stat"><div class="value">{{ "%.3f"|format(computed.f_measure) }}</div><div class="label">F-мера</div></div>
+            <div class="stat"><div class="value">{{ "%.3f"|format(computed.average_precision) }}</div><div class="label">AP</div></div>
+        </div>
+        <p class="muted">
+            Найдено документов: {{ computed.retrieved }} · релевантных по эталону: {{ computed.relevant_total }} ·
+            из них найдено: {{ computed.relevant_retrieved }}
+        </p>
+        {% if chart %}
+        <img src="data:image/png;base64,{{ chart }}" alt="Precision-Recall" style="max-width:100%;">
+        {% else %}
+        <p class="muted">Отметьте хотя бы один релевантный документ ниже, чтобы построить график.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="card">
+        <h2>Отметьте релевантные документы</h2>
+        <p class="muted">
+            Отметьте галочкой документы, которые действительно релевантны запросу «{{ query }}».
+            Непомеченные документы будут считаться нерелевантными для расчёта метрик.
+        </p>
+        <form method="post" action="{{ url_for('main.metrics_evaluate') }}">
+            <input type="hidden" name="query" value="{{ query }}">
+            <input type="hidden" name="mode" value="{{ mode }}">
+            {% if results %}
+            <table>
+                <thead>
+                <tr><th></th><th>#</th><th>Документ</th><th>Релевантность (rank)</th><th>Слова запроса</th></tr>
+                </thead>
+                <tbody>
+                {% for r in results %}
+                <tr>
+                    <td>
+                        <input type="hidden" name="shown_document_id" value="{{ r.document_id }}">
+                        <input type="checkbox" name="relevant_{{ r.document_id }}"
+                               {% if judgments.get(r.document_id) %}checked{% endif %}>
+                    </td>
+                    <td>{{ loop.index }}</td>
+                    <td><a href="{{ url_for('main.view_document', document_id=r.document_id) }}" target="_blank">{{ r.title }}</a></td>
+                    <td>{{ "%.3f"|format(r.rank) }}</td>
+                    <td>
+                        {% for w in r.matched_words %}<span class="badge">{{ w }}</span>{% endfor %}
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            <button class="btn" type="submit" style="margin-top:14px;">Сохранить оценки и пересчитать метрики</button>
+            {% else %}
+            <p class="muted">По запросу ничего не найдено — оценивать нечего.</p>
+            {% endif %}
+        </form>
+    </div>
+{% endif %}
+{% endblock %}

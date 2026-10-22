@@ -1,0 +1,16 @@
+{% macro lang_badge(code) -%}
+<span class="badge badge-{{ code or 'none' }}">{{ code | lang_name }}</span>
+{%- endmacro %}
+
+{% macro percent(value) -%}
+{% if value is none %}—{% else %}{{ '%.1f' | format(value * 100) }} %{% endif %}
+{%- endmacro %}
+
+{% macro method_checkboxes() -%}
+<div class="field">
+    <label>Методы распознавания</label>
+    {% for key, title in METHOD_TITLES.items() %}
+        <label class="inline"><input type="checkbox" name="methods" value="{{ key }}" checked> {{ title }}</label>
+    {% endfor %}
+</div>
+{%- endmacro %}

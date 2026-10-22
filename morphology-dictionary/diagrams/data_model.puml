@@ -1,0 +1,40 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+class Lab1App {
+  - _entries: Dict[str, DictionaryEntry]
+  - _filtered_keys: List[str]
+}
+
+class DictionaryEntry {
+  + wordform: str
+  + lexeme: str
+  + freq: int
+  + morph: str
+}
+
+class "JSON file" as JsonFile
+class "CSV file" as CsvFile
+
+Lab1App "1" o-- "0..*" DictionaryEntry : stores
+Lab1App ..> JsonFile : save/load
+Lab1App ..> CsvFile : export
+
+note right of Lab1App
+_entries:
+  key = wordform (нижний регистр)
+  value = DictionaryEntry
+
+_filtered_keys:
+  список ключей для
+  отображения после
+  сортировки/поиска
+end note
+
+note bottom of DictionaryEntry
+lexeme формируется через lemmatize_word():
+- pymorphy2 (если доступен)
+- иначе pymystem3 (если доступен)
+- иначе lexeme = wordform
+end note
+@enduml

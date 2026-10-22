@@ -1,0 +1,85 @@
+@startuml dialog_model_logical
+title Логический уровень модели диалога\n«Из каких компонентов состоит обработка»
+
+skinparam backgroundColor #FAFAFA
+skinparam ComponentBackgroundColor #FFF8E1
+skinparam ComponentBorderColor #F57C00
+skinparam InterfaceBackgroundColor #E1F5FE
+
+' === Внешние акторы ===
+actor "Пользователь" as User
+
+' === Логические компоненты системы ===
+package "Диалоговый менеджер (DM)" #FFE0B2 {
+    component "Управление\nсостоянием диалога" as DialogState
+    component "Хранение\nконтекста" as Context
+}
+
+package "Модуль понимания (NLU)" #C8E6C9 {
+    component "Препроцессор\nтекста" as Preproc
+    component "Классификатор\nинтентов" as Intent
+    component "Извлечение\nсущностей (NER)" as NER
+    component "Морфологический\nанализатор" as Morph
+}
+
+package "База знаний (KB)" #BBDEFB {
+    component "Онтология\nживотных" as Ontology
+    component "Поиск\nпо БЗ" as Search
+}
+
+package "Генератор ответов (NLG)" #F8BBD0 {
+    component "Шаблоны\nответов" as Templates
+    component "Композитор\nответа" as Composer
+}
+
+package "Хранилище диалогов" #D1C4E9 {
+    component "История\nсообщений" as History
+    component "Журнал\nсессий" as Sessions
+}
+
+package "Пользовательский интерфейс" #B2DFDB {
+    component "Окно чата" as ChatUI
+    component "Подсказки\n(suggestions)" as Suggestions
+    component "Просмотр\nистории" as HistoryUI
+}
+
+' === Связи / поток данных ===
+User --> ChatUI : текст запроса
+ChatUI --> Preproc : сырой текст
+Preproc --> Morph : токены
+Morph --> Intent : нормализованные\nтокены
+Morph --> NER : нормализованные\nтокены
+Intent --> DialogState : intent
+NER --> DialogState : entities
+
+DialogState --> Context : сохранить
+DialogState --> Search : запрос
+Search --> Ontology : выборка\nживотного
+Ontology --> Search : данные
+
+Search --> Composer : структура
+Templates --> Composer : шаблон\nответа
+Composer --> ChatUI : текст ответа
+ChatUI --> User : отображение
+
+DialogState --> History : (запрос, ответ)
+History --> Sessions : группировка
+Sessions --> HistoryUI : список диалогов
+Suggestions --> ChatUI : кнопки-подсказки
+
+note bottom of NER
+  Сущности:
+  • ANIMAL — название животного
+  • HABITAT — место обитания
+  • CATEGORY — категория
+end note
+
+note bottom of Intent
+  Интенты:
+  greeting / goodbye /
+  animal_info / habitat_query /
+  diet_query / facts_query /
+  compare_animals / unknown
+end note
+
+@enduml

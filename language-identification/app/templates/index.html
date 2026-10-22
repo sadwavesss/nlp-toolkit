@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% from "_macros.html" import method_checkboxes %}
+{% block title %}Главная{% endblock %}
+{% block content %}
+<h1>Автоматическое распознавание языка текста</h1>
+<p class="muted">
+    Система определяет язык PDF-документов (русский или английский) тремя методами —
+    коротких слов, алфавитным и нейросетевым — и сравнивает их результаты.
+    Подробнее — в разделе <a href="{{ url_for('main.help_page') }}">«Справка»</a>.
+</p>
+
+{% if model_error %}
+    <div class="flash flash-error">{{ model_error }}</div>
+{% else %}
+    <div class="stat-grid">
+        {% for lang, info in identifier.corpus_info.items() %}
+            <div class="stat">
+                <div class="value">{{ '%.1f' | format(info.bytes / 1024) }} КБ</div>
+                <div class="label">обучающий корпус: {{ lang | lang_name }} ({{ info.files | length }} файл.)</div>
+            </div>
+        {% endfor %}
+        <div class="stat">
+            <div class="value">{{ collection_size }}</div>
+            <div class="label">PDF в тестовой коллекции</div>
+        </div>
+    </div>
+{% endif %}
+
+<div class="grid-2">
+    <div class="card">
+        <h2>Распознать свои документы</h2>
+        <form method="post" action="{{ url_for('main.analyze') }}" enctype="multipart/form-data">
+            <div class="field">
+                <label for="files">PDF-документы (можно выбрать несколько)</label>
+                <input type="file" id="files" name="files" accept="application/pdf,.pdf" multiple required>
+                <p class="small muted">
+                    Если имя файла начинается с <code>ru_</code> или <code>en_</code>, этот язык считается
+                    истинным и используется для расчёта точности.
+                </p>
+            </div>
+            {{ method_checkboxes() }}
+            <button class="btn" type="submit">Распознать</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2>Тестовая коллекция</h2>
+        <p class="muted small">
+            Набор PDF-документов одинакового размера (≈ 1 страница A4) с заранее известным языком
+            из папки <code>test_docs/</code>. Позволяет получить сводную статистику и сравнить методы.
+        </p>
+        <form method="post" action="{{ url_for('main.analyze_collection') }}">
+            {{ method_checkboxes() }}
+            <button class="btn" type="submit" {% if not collection_size %}disabled{% endif %}>
+                Обработать коллекцию ({{ collection_size }} док.)
+            </button>
+        </form>
+    </div>
+</div>
+
+{% if recent_runs %}
+<div class="card">
+    <h2>Последние запуски</h2>
+    <table>
+        <thead><tr><th>Дата</th><th>Источник</th><th class="num">Документов</th><th></th></tr></thead>
+        <tbody>
+        {% for run in recent_runs %}
+            <tr>
+                <td>{{ run.created }}</td>
+                <td>{{ 'Тестовая коллекция' if run.source == 'collection' else 'Загруженные документы' }}</td>
+                <td class="num">{{ run.documents | length }}</td>
+                <td><a href="{{ url_for('main.view_run', run_id=run.id) }}">Открыть →</a></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

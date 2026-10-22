@@ -1,0 +1,61 @@
+@startuml
+!theme plain
+skinparam componentStyle rectangle
+skinparam backgroundColor #FEFEFE
+
+title Архитектура LAB3 - Синтаксический анализатор
+
+package "Веб-приложение (Flask)" #LightBlue {
+    [app.py] as App
+    [Роуты\n/api/upload\n/api/analyze\n/api/edit] as Routes
+}
+
+package "Анализатор" #LightGreen {
+    [SyntaxAnalyzer] as Analyzer #LightYellow
+    [spaCy\nru_core_news_sm] as Spacy
+    [Токенизация] as Tokenizer
+    [Лемматизация] as Lemmatizer
+    [Dependency\nParser] as Parser
+    [NER\nNamed Entity\nRecognition] as Ner
+}
+
+package "Хранение данных" #LightPink {
+    [DBManager] as DB
+    [SQLite\nsyntax_analysis.db] as SQLite
+}
+
+package "Утилиты" #LightGray {
+    [DocumentReader\nDOCX, TXT, PDF] as Reader
+    [HelpSystem] as Help
+}
+
+[Пользователь\nБраузер] as User
+
+User --> App : HTTP запросы
+App --> Routes : Маршрутизация
+Routes --> Analyzer : analyze_text()
+Routes --> DB : SELECT/INSERT/UPDATE
+Routes --> Reader : read(filepath)
+
+Analyzer --> Spacy : nlp(text)
+Spacy --> Tokenizer : tokens
+Spacy --> Lemmatizer : lemmas
+Spacy --> Parser : dependencies
+Spacy --> Ner : entities
+
+Analyzer --> DB : Сохранение результатов
+DB --> SQLite : SQL запросы
+
+App --> Help : Справка
+
+note right of Spacy
+  Модель ru_core_news_sm
+  ~500 MB, 95% accuracy
+end note
+
+note bottom of Analyzer
+  Поддерживает редактирование
+  токенов через API
+end note
+
+@enduml

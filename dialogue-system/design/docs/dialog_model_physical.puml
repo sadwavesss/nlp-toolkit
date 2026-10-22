@@ -1,0 +1,82 @@
+@startuml dialog_model_physical
+title Физический уровень модели диалога\n«Конкретная программная и аппаратная реализация»
+
+skinparam backgroundColor #FAFAFA
+skinparam NodeBackgroundColor #FFFFFF
+skinparam NodeBorderColor #455A64
+skinparam ArtifactBackgroundColor #FFF3E0
+skinparam DatabaseBackgroundColor #E8F5E9
+
+' === Клиентский узел ===
+node "Клиент (браузер)" as Client {
+    artifact "index.html" as HTML
+    artifact "styles.css" as CSS
+    artifact "mockup.js / app.js\n(Vanilla JS, fetch API)" as JS
+    component "DOM-рендеринг\nдиалога" as DOM
+}
+
+' === Сервер ===
+node "Веб-сервер\n(Flask 3.0, Python 3.12)" as Server {
+    artifact "app.py\n(маршруты Flask)" as App
+    component "REST API\n/api/send_message\n/api/get_history\n/api/end_dialogue" as API
+
+    package "Backend-модули" {
+        artifact "nlp_processor.py" as NLPpy
+        artifact "response_generator.py" as RGpy
+        artifact "database_manager.py" as DBpy
+    }
+
+    component "spaCy + ru_core_news_sm\n(морфология, POS, NER)" as Spacy
+    component "Pattern matching\n(re, regex)" as Regex
+}
+
+' === Хранилище ===
+database "SQLite\n(dialog_system.db)" as DB {
+    folder "Таблицы" {
+        artifact "animals" as TbAnimals
+        artifact "dialogues" as TbDialogues
+        artifact "messages" as TbMessages
+    }
+}
+
+' === Разворачивание ===
+node "ОС: Windows / Linux\nPython venv" as OS
+
+' === Связи между узлами ===
+Client -[#1976D2]-> Server : HTTP/JSON\n(localhost:5000)
+HTML --> JS : <script>
+JS --> DOM : update
+JS -[#1976D2]-> API : POST /api/send_message\n{ "message": "..." }
+API --> App
+App --> NLPpy : analyze_text()
+NLPpy --> Spacy : nlp(text)
+NLPpy --> Regex : intent patterns
+App --> RGpy : generate_response()
+RGpy --> DBpy : get_animal_info()
+DBpy --> DB : SELECT ...
+App --> DBpy : add_message(), create_dialogue()
+DBpy --> DB : INSERT ...
+API -[#1976D2]-> JS : { response, intent, entities }
+
+Server .. OS
+
+note bottom of Client
+  <b>Развёртывание клиента:</b>
+  - Открытие index.html в браузере
+  - или python -m http.server 8000
+  Технологии: HTML5, CSS3, ES6
+end note
+
+note bottom of Server
+  <b>Запуск сервера:</b>
+  $ python app.py
+  Зависимости: flask, spacy, sqlite3
+end note
+
+note right of DB
+  <b>Файл:</b> dialog_system.db
+  <b>Локация:</b> рядом с app.py
+  <b>Размер:</b> ~40 КБ (стартовая БЗ)
+end note
+
+@enduml

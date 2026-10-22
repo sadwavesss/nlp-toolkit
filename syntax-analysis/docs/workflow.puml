@@ -1,0 +1,79 @@
+@startuml
+!theme plain
+skinparam backgroundColor #FEFEFE
+
+title Поток обработки текста LAB3
+
+start
+
+:Пользователь выбирает
+ документ (DOCX/TXT/PDF);
+
+:Загрузка файла
+через веб-интерфейс;
+
+partition "DocumentReader" {
+    :Определение формата файла;
+    if (Формат?) then (DOCX)
+        :python-docx
+        извлекает текст;
+    elseif (TXT)
+        :open()
+        читает файл;
+    else (PDF)
+        :PyPDF2
+        извлекает текст;
+    endif
+}
+
+partition "SyntaxAnalyzer" {
+    :Загрузка spaCy модели
+    ru_core_news_sm;
+    
+    :Токенизация текста;
+    note right
+      doc = nlp(text)
+      for token in doc:
+          token.text
+    end note
+    
+    :Лемматизация;
+    note right
+      lemma = token.lemma_
+      "кошками" → "кошка"
+    end note
+    
+    :Синтаксический разбор
+    (Dependency Parsing);
+    note right
+      token.dep_   // nsubj, obj, root
+      token.head   // главное слово
+      token.pos_   // NOUN, VERB, ADJ
+    end note
+    
+    :NER (Named Entity
+    Recognition);
+    note right
+      doc.ents
+      Персоны, локации,
+      организации
+    end note
+}
+
+:Сохранение в SQLite;
+note right
+  Таблицы:
+  - documents
+  - tokens
+  - entities
+end note
+
+:Визуализация в браузере
+(таблица токенов);
+
+:Редактирование токенов
+(опционально);
+
+stop
+
+@enduml

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Справка{% endblock %}
+
+{% block content %}
+<h2>Справка</h2>
+
+<div class="row">
+    <div class="col-md-3">
+        <div class="list-group">
+            {% for t in topics %}
+            <a href="{{ url_for('help_page', topic=t.key) }}"
+               class="list-group-item list-group-item-action {{ 'active' if t.key == current_topic }}">
+                {{ t.title }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="col-md-9">
+        <div class="card">
+            <div class="card-header">{{ topic.title }}</div>
+            <div class="card-body">
+                <pre class="help-content">{{ topic.content }}</pre>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

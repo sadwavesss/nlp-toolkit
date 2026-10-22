@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% from "_macros.html" import percent %}
+{% block title %}Профили языков{% endblock %}
+{% block content %}
+<h1>Профили языков (ПОЯ)</h1>
+
+{% if model_error %}
+    <div class="flash flash-error">{{ model_error }}</div>
+{% else %}
+<div class="actions no-print">
+    <form method="post" action="{{ url_for('main.retrain') }}">
+        <button class="btn" type="submit">Перестроить профили и переобучить сеть</button>
+    </form>
+    <button class="btn btn-secondary" type="button" onclick="window.print()">Печать</button>
+</div>
+
+<div class="card">
+    <h2>Обучающий корпус</h2>
+    <p class="small muted">Построен {{ identifier.trained_at }}. Файлы лежат в папке <code>corpus/&lt;язык&gt;/</code> (.txt или .pdf).</p>
+    <div class="grid-2">
+        {% for lang, info in identifier.corpus_info.items() %}
+            <div>
+                <h3>{{ lang | lang_name }} — {{ '%.1f' | format(info.bytes / 1024) }} КБ, {{ info.chars }} символов</h3>
+                <ul class="small">
+                    {% for f in info.files %}<li>{{ f.name }} — {{ '%.1f' | format(f.bytes / 1024) }} КБ</li>{% endfor %}
+                </ul>
+            </div>
+        {% endfor %}
+    </div>
+    <p class="small muted">Время построения профилей:
+        {% for key, ms in identifier.training_time.items() %}{{ METHOD_TITLES[key] }} — {{ ms }} мс{% if not loop.last %}; {% endif %}{% endfor %}</p>
+</div>
+
+<div class="card">
+    <h2>{{ short_words.title }}</h2>
+    <p class="small muted">{{ short_words.description }}</p>
+    <p class="small">Параметры: длина слова ≤ {{ short_words.max_length }}, частота ≥ {{ short_words.min_count }}.</p>
+    <div class="grid-2">
+        {% for lang, profile in short_words.profiles.items() %}
+            <div>
+                <h3>{{ lang | lang_name }}: {{ profile | length }} лексем, P<sub>min</sub> = {{ '%.6f' | format(short_words.min_probability[lang]) }}</h3>
+                <table>
+                    <thead><tr><th>№</th><th>Лексема</th><th class="num">P</th></tr></thead>
+                    <tbody>
+                    {% for word, p in profile.items() %}
+                        {% if loop.index <= 25 %}
+                        <tr><td>{{ loop.index }}</td><td><code>{{ word }}</code></td><td class="num">{{ '%.5f' | format(p) }}</td></tr>
+                        {% endif %}
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="card">
+    <h2>{{ alphabet.title }}</h2>
+    <p class="small muted">{{ alphabet.description }}</p>
+    <div class="grid-2">
+        {% for lang, profile in alphabet.profiles.items() %}
+            <div>
+                <h3>{{ lang | lang_name }}: алфавит из {{ profile | length }} букв</h3>
+                <p><code>{{ profile.keys() | sort | join('') }}</code></p>
+                <table>
+                    <tbody>
+                    {% for letter, f in profile.items() %}
+                        <tr>
+                            <td style="width: 10%"><code>{{ letter }}</code></td>
+                            <td><progress class="bar" value="{{ [f, 1 / 6] | min }}" max="{{ 1 / 6 }}"></progress></td>
+                            <td class="num" style="width: 20%">{{ percent(f) }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="card">
+    <h2>{{ neural.title }}</h2>
+    <p class="small muted">{{ neural.description }}</p>
+    <table>
+        <tbody>
+        <tr><td>Архитектура</td><td>{{ neural.architecture }}</td></tr>
+        <tr><td>Признаки</td><td>частоты {{ neural.letters_count }} букв + {{ neural.bigrams | length }} биграмм</td></tr>
+        <tr><td>Эпох / скорость обучения / L2</td><td>{{ neural.epochs }} / {{ neural.learning_rate }} / {{ neural.l2 }}</td></tr>
+        <tr><td>Обучающих / валидационных фрагментов</td><td>{{ neural.metrics.train_samples }} / {{ neural.metrics.val_samples }}</td></tr>
+        <tr><td>Точность на обучении</td><td>{{ percent(neural.metrics.train_accuracy) }}</td></tr>
+        <tr><td>Точность на валидации</td><td>{{ percent(neural.metrics.val_accuracy) }}</td></tr>
+        <tr><td>Итоговая функция потерь</td><td>{{ '%.5f' | format(neural.metrics.final_loss) }}</td></tr>
+        </tbody>
+    </table>
+
+    <h3>Кривая обучения</h3>
+    <div class="legend">
+        <span><i style="background:#2454ff"></i> функция потерь (0 … {{ '%.3f' | format(chart.max_loss) }})</span>
+        <span><i style="background:#1a7f37"></i> точность на валидации (0 … 100 %)</span>
+    </div>
+    <svg class="chart" viewBox="-10 -10 {{ chart.width + 20 }} {{ chart.height + 30 }}">
+        <line x1="0" y1="{{ chart.height }}" x2="{{ chart.width }}" y2="{{ chart.height }}" stroke="#ccc"/>
+        <line x1="0" y1="0" x2="0" y2="{{ chart.height }}" stroke="#ccc"/>
+        <polyline fill="none" stroke="#2454ff" stroke-width="2" points="{{ chart.loss }}"/>
+        <polyline fill="none" stroke="#1a7f37" stroke-width="2" points="{{ chart.val_accuracy }}"/>
+        <text x="0" y="{{ chart.height + 16 }}" font-size="11" fill="#667085">1</text>
+        <text x="{{ chart.width }}" y="{{ chart.height + 16 }}" font-size="11" fill="#667085" text-anchor="end">эпоха {{ chart.epochs }}</text>
+    </svg>
+
+    <h3>Биграммы-признаки</h3>
+    <p class="small">{% for b in neural.bigrams %}<code>{{ b }}</code> {% endfor %}</p>
+    <p class="small muted">Символ <code>_</code> обозначает границу слова.</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,23 @@
+/* Стили для синтаксического анализатора */
+
+body { background: #f8f9fa; }
+
+.card { box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 1rem; }
+.card-header { font-weight: 600; }
+
+.token-table td, .token-table th { font-size: .875rem; vertical-align: middle; }
+.editable { cursor: pointer; }
+.editable:hover { background: #e9ecef; }
+
+/* Дерево зависимостей */
+.dep-tree-container { border-top: 1px solid #dee2e6; padding-top: .75rem; margin-top: .5rem; }
+.dep-tree { font-family: monospace; font-size: .85rem; line-height: 1.6; white-space: pre; }
+
+.help-content {
+    white-space: pre-wrap;
+    font-family: inherit;
+    font-size: .95rem;
+    background: none;
+    border: none;
+    padding: 0;
+}

@@ -1,0 +1,90 @@
+@startuml
+!theme plain
+skinparam classAttributeIconSize 0
+skinparam backgroundColor #FEFEFE
+
+title Классы LAB4 - Семантический анализатор
+
+class SemanticAnalyzer #LightYellow {
+    -nlp: spacy.Language
+    -morph: pymorphy3.MorphAnalyzer
+    -wordnet_available: bool
+    -natasha_available: bool
+    --
+    +analyze_text(text: str): List[Dict]
+    +is_available(): bool
+    +ner_available(): bool
+    --
+    -_analyze_tokens(sent): List[Dict]
+    -_extract_entities(sent, tokens): List[Dict]
+    -_assign_semantic_roles(sent, tokens): List[Dict]
+    -_lookup_senses(tokens): List[Dict]
+    -_get_wordnet_sense(lemma): Optional[Synset]
+    -_translate_hypernym(name): str
+    -_analyze_with_pymorphy(text): List[Dict]
+}
+
+class DBManager #LightPink {
+    -db_path: str
+    --
+    +get_documents(): List[Dict]
+    +add_document(...): int
+    +save_analysis(doc_id, sentences): bool
+    +get_analysis(doc_id): List[Dict]
+    +update_token(...): bool
+    +save_semantic_data(doc_id, senses, roles): bool
+}
+
+class DocumentReader #LightGray {
+    -supported_formats: List[str]
+    --
+    +read(filepath): str
+    +is_supported(filename): bool
+    -_read_txt(filepath): str
+    -_read_docx(filepath): str
+    -_read_pdf(filepath): str
+}
+
+class HelpSystem #LightBlue {
+    -help_data: Dict
+    --
+    +get_context_help(page): str
+    +get_component_description(component): str
+    +get_method_help(method): str
+}
+
+class FlaskApp #LightCyan {
+    +upload_document()
+    +analyze_document()
+    +get_analysis()
+    +edit_token()
+    +help_page()
+}
+
+SemanticAnalyzer ..> DBManager : сохраняет результаты
+SemanticAnalyzer ..> DocumentReader : получает текст
+FlaskApp ..> SemanticAnalyzer : вызывает анализ
+FlaskApp ..> DBManager : управляет данными
+FlaskApp ..> HelpSystem : показывает справку
+
+note right of SemanticAnalyzer
+  Два режима работы:
+  1. spaCy (основной)
+  2. pymorphy3 (fallback)
+  
+  Интеграция с WordNet
+  для семантического
+  анализа
+end note
+
+note bottom of DBManager
+  Расширенная схема:
+  - documents
+  - sentences
+  - tokens
+  - entities
+  - semantic_senses
+  - semantic_roles
+end note
+
+@enduml

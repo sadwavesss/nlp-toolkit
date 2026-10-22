@@ -1,0 +1,81 @@
+@startuml dialog_flow
+title Блок-схема сценария диалога системы «Животные мира»
+
+skinparam backgroundColor #FAFAFA
+skinparam ActivityBackgroundColor #E3F2FD
+skinparam ActivityBorderColor #1976D2
+skinparam ActivityDiamondBackgroundColor #FFF3E0
+skinparam ActivityDiamondBorderColor #F57C00
+
+start
+
+:Запуск диалоговой системы;
+:Показать приветственное сообщение
+и подсказки пользователю;
+
+repeat
+    :Ожидание ввода пользователя;
+    :Получить текст сообщения U;
+
+    if (U пустой?) then (да)
+        :Сообщение: «Введите вопрос»;
+    else (нет)
+        :Отобразить U в окне чата;
+        :Препроцессинг: токенизация,
+        приведение к нижнему регистру;
+
+        :Определение интента
+        (intent) по паттернам;
+        :Извлечение сущностей
+        (entities) — животных, мест;
+
+        if (intent = "greeting"?) then (да)
+            :Ответ: приветственное
+            сообщение;
+        elseif (intent = "goodbye"?) then (да)
+            :Ответ: прощание;
+            :Закрыть диалог;
+            stop
+        elseif (intent = "animal_info"?) then (да)
+            if (есть сущность ANIMAL?) then (да)
+                :Поиск животного в БЗ;
+                if (найдено?) then (да)
+                    :Сформировать полную карточку:
+                    категория, ареал, питание,
+                    размер, факт;
+                else (нет)
+                    :Ответ: «не найдено»,
+                    показать доступных животных;
+                endif
+            else (нет)
+                :Ответ: «уточните название»;
+            endif
+        elseif (intent = "habitat_query"?) then (да)
+            :Ответ: ареал обитания;
+        elseif (intent = "diet_query"?) then (да)
+            :Ответ: рацион питания;
+        elseif (intent = "facts_query"?) then (да)
+            :Ответ: интересные факты;
+        elseif (intent = "compare_animals"?) then (да)
+            if (>=2 ANIMAL?) then (да)
+                :Сравнить параметры
+                двух животных;
+            else (нет)
+                :Ответ: «нужно 2 животных»;
+            endif
+        else (unknown)
+            :Ответ: «не понял»,
+            показать подсказки;
+        endif
+
+        :Отобразить ответ системы
+        с тегами intent/entities;
+        :Сохранить пару (U, A) в историю;
+    endif
+
+repeat while (пользователь активен?) is (да) not (нет)
+
+:Сохранить диалог;
+stop
+
+@enduml

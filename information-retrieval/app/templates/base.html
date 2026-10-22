@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}ИПС{% endblock %} — Информационно-поисковая система</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="topbar">
+    <div class="container topbar-inner">
+        <a class="brand" href="{{ url_for('main.index') }}">📚 ИПС</a>
+        <nav>
+            <a href="{{ url_for('main.index') }}">Главная</a>
+            <a href="{{ url_for('main.documents') }}">Документы</a>
+            <a href="{{ url_for('main.add_document') }}">Добавить документ</a>
+            <a href="{{ url_for('main.search') }}">Поиск</a>
+            <a href="{{ url_for('main.metrics_overview') }}">Метрики</a>
+            <a href="{{ url_for('main.help_page') }}">Справка</a>
+        </nav>
+    </div>
+</header>
+
+<main class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flashes">
+                {% for category, message in messages %}
+                    <div class="flash flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+</main>
+
+<footer class="container footer">
+    <p>ИПС · вариант 25 · логическая (булева) стратегия поиска · рус. язык · ЛВС</p>
+</footer>
+</body>
+</html>

@@ -1,0 +1,110 @@
+@startuml structural_scheme
+title Структурно-функциональная схема диалоговой системы
+
+skinparam backgroundColor #FAFAFA
+skinparam componentStyle rectangle
+skinparam component {
+    BackgroundColor #FFFFFF
+    BorderColor #455A64
+}
+
+actor "Пользователь" as User
+
+package "Клиент (браузер)" as Client #E1F5FE {
+    component "index.html\n(UI: 4 view)" as UI
+    component "app.js\n(REST-клиент)" as JS
+    component "styles.css" as CSS
+}
+
+package "Сервер Flask (Python 3.12)" as Server #FFF3E0 {
+
+    package "Слой представления" as Layer1 #FFFFFF {
+        component "app.py\nREST API (8 endpoints)" as API
+    }
+
+    package "Логический слой" as Layer2 #FFFFFF {
+        component "NLU\n(nlp_processor.py)" as NLU {
+            component "Лемматизатор" as Lemma
+            component "Распознаватель\nсущностей" as NER
+            component "Классификатор\nинтентов" as Intent
+        }
+
+        component "Dialog Manager\n(app.py: active_dialogues)" as DM {
+            component "Контекст\nдиалога" as Context
+            component "Анафора\n(last_animal)" as Anaphora
+        }
+
+        component "NLG\n(response_generator.py)" as NLG {
+            component "Диспетчер\nпо интентам" as Dispatcher
+            component "Шаблоны\nответов" as Templates
+        }
+    }
+
+    package "Слой данных" as Layer3 #FFFFFF {
+        component "Database Manager\n(database_manager.py)" as DBM
+    }
+}
+
+database "SQLite\n(dialog_system.db)" as DB #C8E6C9 {
+    component "animals_knowledge" as TbAnimals
+    component "dialogues" as TbDialogues
+    component "messages" as TbMessages
+}
+
+component "spaCy\nru_core_news_sm" as Spacy #FFE0B2
+
+' === Связи ===
+User -down-> UI : ввод/вывод
+UI -right-> JS
+JS -right-> CSS
+
+JS <-down-> API : HTTP/JSON\nlocalhost:5003
+
+API -down-> NLU : analyze_text()
+API -down-> DM : update_context()
+API -down-> NLG : generate_response()
+API -down-> DBM : add_message()\nget_history()
+
+NLU -right-> Spacy : nlp(text)
+NLU -down-> DM : intent, entities
+
+DM -right-> NLG : intent, animals,\ncontext
+
+NLG -down-> DBM : get_animal_info()
+
+DBM -down-> DB : SQL
+
+note right of API
+  **Endpoints:**
+  • POST /api/send_message
+  • GET  /api/get_history
+  • POST /api/new_dialogue
+  • POST /api/end_dialogue
+  • GET  /api/dialogues
+  • GET  /api/dialogue/<id>
+  • GET  /api/animals
+  • GET  /api/statistics
+end note
+
+note right of NLU
+  • 7 типов интентов
+  • 100+ словоформ
+  • Regex + spaCy
+end note
+
+note right of NLG
+  • Отдельный handler
+    на каждый интент
+  • 3+ варианта
+    шаблона для разнообразия
+  • Markdown в ответах
+end note
+
+note bottom of DB
+  Хранилище:
+  • 10 животных
+  • Все диалоги
+  • Все сообщения с intent/entities
+end note
+
+@enduml

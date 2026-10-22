@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Документы{% endblock %}
+{% block content %}
+<h1>Документы в базе</h1>
+<a class="btn" href="{{ url_for('main.add_document') }}">+ Добавить документ</a>
+
+<div class="card" style="margin-top: 18px;">
+    {% if documents %}
+    <table>
+        <thead>
+            <tr><th>ID</th><th>Заголовок</th><th>Дата</th><th>Время</th><th></th></tr>
+        </thead>
+        <tbody>
+        {% for doc in documents %}
+            <tr>
+                <td>{{ doc.document_id }}</td>
+                <td><a href="{{ url_for('main.view_document', document_id=doc.document_id) }}">{{ doc.title }}</a></td>
+                <td>{{ doc.date }}</td>
+                <td>{{ doc.time }}</td>
+                <td>
+                    <form method="post" action="{{ url_for('main.delete_document', document_id=doc.document_id) }}"
+                          onsubmit="return confirm('Удалить документ «{{ doc.title }}»?');" style="display:inline;">
+                        <button class="btn btn-danger" type="submit">Удалить</button>
+                    </form>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="muted">База документов пуста. <a href="{{ url_for('main.add_document') }}">Добавьте первый документ.</a></p>
+    {% endif %}
+</div>
+{% endblock %}

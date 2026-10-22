@@ -1,0 +1,113 @@
+@startuml data_structures
+title Структуры данных диалоговой системы «Животные мира»
+
+skinparam backgroundColor #FAFAFA
+skinparam ClassBackgroundColor #E8F5E9
+skinparam ClassBorderColor #2E7D32
+
+' === Входные данные ===
+class UserInput <<входные>> {
+    + text : string
+    + timestamp : datetime
+    + session_id : string
+}
+
+class NLPResult <<NLP-анализ>> {
+    + clean_text : string
+    + intent : Intent
+    + entities : List<Entity>
+    + confidence : float
+}
+
+enum Intent {
+    greeting
+    goodbye
+    animal_info
+    habitat_query
+    diet_query
+    facts_query
+    compare_animals
+    general_question
+    unknown
+}
+
+class Entity {
+    + text : string
+    + type : EntityType
+    + position : int
+}
+
+enum EntityType {
+    ANIMAL
+    HABITAT
+    CATEGORY
+}
+
+' === База знаний ===
+class Animal <<база знаний>> {
+    + id : int
+    + name : string
+    + category : string
+    + habitat : string
+    + diet : string
+    + size : string
+    + lifespan : string
+    + interesting_facts : string
+    + emoji : string
+}
+
+' === Диалог ===
+class Dialogue <<диалог>> {
+    + id : int
+    + session_id : string
+    + created_at : datetime
+    + ended_at : datetime
+    + status : DialogStatus
+    + context : List<Message>
+    + last_animal : string
+}
+
+enum DialogStatus {
+    active
+    ended
+}
+
+class Message <<сообщение>> {
+    + id : int
+    + dialogue_id : int
+    + sender : Sender
+    + text : string
+    + intent : Intent
+    + entities : List<Entity>
+    + timestamp : datetime
+}
+
+enum Sender {
+    user
+    system
+}
+
+' === Выходные данные ===
+class SystemResponse <<выходные>> {
+    + text : string
+    + intent : Intent
+    + entities : List<Entity>
+    + suggestions : List<string>
+    + timestamp : datetime
+}
+
+' === Связи ===
+UserInput --> NLPResult : анализ
+NLPResult --> Intent
+NLPResult "1" --> "*" Entity
+Entity --> EntityType
+
+Dialogue "1" --> "*" Message : содержит
+Message --> Sender
+Message --> Intent
+Message "1" --> "*" Entity
+
+NLPResult ..> Animal : поиск\nпо БЗ
+Animal --> SystemResponse : формирование
+
+@enduml

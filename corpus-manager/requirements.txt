@@ -1,0 +1,10 @@
+Flask==3.0.3
+pymorphy3==2.0.2
+pymorphy3-dicts-ru==2.4.417150.4580142
+PyPDF2==3.0.1
+python-docx==1.1.2
+regex==2024.9.11
+# optional
+pymystem3==0.2.0
+# .doc files are read through MS Word on Windows only
+# pywin32==306; sys_platform == "win32"

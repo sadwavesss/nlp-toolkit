@@ -1,0 +1,4 @@
+Flask==3.0.3
+spacy==3.8.2
+python-docx==1.1.2
+# then: python -m spacy download ru_core_news_sm

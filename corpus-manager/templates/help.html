@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Справка - Корпусный менеджер</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1 { color: #333; text-align: center; }
+        h2 { color: #007bff; border-bottom: 2px solid #007bff; padding-bottom: 5px; margin-top: 30px; }
+        h3 { color: #555; margin-top: 20px; }
+        .btn { display: inline-block; padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; margin: 5px; }
+        .btn:hover { background: #0056b3; }
+        .back-btn { background: #6c757d; }
+        .back-btn:hover { background: #5a6268; }
+        .nav { text-align: center; margin-bottom: 20px; }
+        .guide-section { margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 4px; }
+        .step { margin: 10px 0; padding: 10px; background: white; border-left: 4px solid #28a745; }
+        .step-number { font-weight: bold; color: #28a745; font-size: 1.2em; }
+        .tip { background: #d1ecf1; border: 1px solid #bee5eb; padding: 10px; border-radius: 4px; margin: 10px 0; }
+        .tip strong { color: #0c5460; }
+        code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-family: monospace; }
+        .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin: 20px 0; }
+        .feature-card { background: #f8f9fa; padding: 15px; border-radius: 4px; border-left: 4px solid #007bff; }
+        .feature-card h4 { margin: 0 0 10px 0; color: #007bff; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #007bff; color: white; }
+        tr:hover { background: #f5f5f5; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav">
+            <a href="{{ url_for('index') }}" class="btn back-btn">← Назад к корпусам</a>
+        </div>
+
+        <h1>Справка по использованию Корпусного менеджера</h1>
+
+        <div class="guide-section">
+            <h2>Быстрый старт</h2>
+            
+            <div class="step">
+                <span class="step-number">1.</span> <strong>Создайте корпус</strong><br>
+                Нажмите "Создать новый корпус" на главной странице. Введите название и описание.
+            </div>
+
+            <div class="step">
+                <span class="step-number">2.</span> <strong>Загрузите документы</strong><br>
+                Откройте корпус и нажмите "Загрузить документ". Поддерживаются форматы: TXT, DOCX, PDF, RTF.
+            </div>
+
+            <div class="step">
+                <span class="step-number">3.</span> <strong>Запустите морфологический анализ</strong><br>
+                В корпусе нажмите "Запустить морфологический анализ". Система автоматически разберет все слова.
+            </div>
+
+            <div class="step">
+                <span class="step-number">4.</span> <strong>Ищите и анализируйте</strong><br>
+                Используйте поиск, конкорданс и статистику для изучения текстов.
+            </div>
+        </div>
+
+        <div class="guide-section">
+            <h2>Основные функции</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>Корпусы</h4>
+                    <p>Коллекции текстов, объединенных по теме, жанру или другому признаку.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Морфологический анализ</h4>
+                    <p>Автоматическое определение частей речи, падежей, чисел и других характеристик слов.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Поиск</h4>
+                    <p>Поиск по словоформам, леммам (начальным формам) и частям речи.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Конкорданс</h4>
+                    <p>Просмотр слов в контексте: левый контекст | слово | правый контекст.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Статистика</h4>
+                    <p>Частотность слов, распределение частей речи, сложность текста.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Экспорт</h4>
+                    <p>Сохранение результатов анализа в различных форматах.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="guide-section">
+            <h2>Типы поиска</h2>
+            <table>
+                <tr>
+                    <th>Тип поиска</th>
+                    <th>Описание</th>
+                    <th>Пример</th>
+                </tr>
+                <tr>
+                    <td>По словоформе</td>
+                    <td>Точное совпадение слова</td>
+                    <td>"кошки" найдет только "кошки"</td>
+                </tr>
+                <tr>
+                    <td>По лемме</td>
+                    <td>Все формы слова</td>
+                    <td>"кошка" найдет "кошка", "кошки", "кошку"...</td>
+                </tr>
+                <tr>
+                    <td>По части речи</td>
+                    <td>Все слова определенной части речи</td>
+                    <td>Все существительные или глаголы</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="guide-section">
+            <h2>Ключевые понятия</h2>
+            
+            <h3>Словоформа</h3>
+            <p>Конкретная форма слова в тексте. Например: "кошка", "кошки", "кошке" - это разные словоформы.</p>
+
+            <h3>Лемма</h3>
+            <p>Начальная форма слова. Для существительных - именительный падеж единственного числа. Например, лемма для "кошки", "кошке", "кошкой" - это <code>кошка</code>.</p>
+
+            <h3>Морфологический тег</h3>
+            <p>Описание грамматических характеристик слова: часть речи, падеж, число, род и т.д.</p>
+
+            <h3>Конкорданс</h3>
+            <p>Представление всех вхождений слова с контекстом. Помогает изучить, как слово используется в тексте.</p>
+        </div>
+
+        <div class="tip">
+            <strong>Совет:</strong> Для лучших результатов используйте тексты на русском языке в формате TXT или DOCX. PDF файлы могут содержать ошибки распознавания.
+        </div>
+
+        <div class="guide-section">
+            <h2>Поддерживаемые форматы</h2>
+            <ul>
+                <li><strong>TXT</strong> - обычные текстовые файлы (рекомендуется)</li>
+                <li><strong>DOCX</strong> - документы Microsoft Word</li>
+                <li><strong>PDF</strong> - PDF документы (может быть неточным)</li>
+                <li><strong>RTF</strong> - Rich Text Format</li>
+            </ul>
+        </div>
+
+        <div class="nav" style="margin-top: 30px;">
+            <a href="{{ url_for('index') }}" class="btn back-btn">← Назад к корпусам</a>
+        </div>
+    </div>
+</body>
+</html>

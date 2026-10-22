@@ -1,0 +1,7 @@
+body { background: #f8f9fa; }
+.token-table td, .token-table th { font-size: 0.85rem; padding: 0.3rem 0.5rem; }
+.dep-tree-container { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 0.375rem; padding: 0.75rem; }
+.dep-tree { font-family: monospace; font-size: 0.85rem; white-space: pre; line-height: 1.5; }
+.entity-badge { font-size: 0.85rem; padding: 0.4em 0.7em; }
+.editable { cursor: pointer; }
+.editable:hover { background-color: #fff3cd; border-radius: 3px; }

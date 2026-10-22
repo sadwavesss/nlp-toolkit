@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Диалоговая система «Животные мира»</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <!-- Боковая панель навигации -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h2>🦁 Зоо-Бот</h2>
+            <p class="version">Lab 6 · v1.0</p>
+        </div>
+
+        <nav class="sidebar-nav">
+            <button class="nav-item active" data-view="chat">
+                <span class="icon">💬</span> Чат
+            </button>
+            <button class="nav-item" data-view="history">
+                <span class="icon">📜</span> История диалогов
+            </button>
+            <button class="nav-item" data-view="topics">
+                <span class="icon">📚</span> Тематика
+            </button>
+            <button class="nav-item" data-view="help">
+                <span class="icon">❓</span> Справка
+            </button>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="user-status">
+                <div class="status-indicator online"></div>
+                <span id="connectionStatus">Соединение установлено</span>
+            </div>
+            <button class="btn-secondary" id="newDialogBtn">+ Новый диалог</button>
+        </div>
+    </aside>
+
+    <main class="main-area">
+
+    <!-- ============== ВИД: ЧАТ ============== -->
+    <div class="view view-chat active" id="view-chat">
+        <header class="chat-header">
+            <div class="header-info">
+                <h1>Диалоговая система «Животные мира»</h1>
+                <p class="subtitle">Задавайте вопросы о животных на естественном русском языке</p>
+            </div>
+            <div class="header-actions">
+                <button class="icon-btn" title="Очистить диалог" id="clearBtn">🗑️</button>
+            </div>
+        </header>
+
+        <section class="chat-messages" id="chatMessages">
+            <!-- Сообщения добавляются динамически -->
+        </section>
+
+        <section class="suggestions">
+            <span class="suggestions-label">💡 Попробуйте:</span>
+            <button class="chip" data-text="Расскажи про льва">🦁 Расскажи про льва</button>
+            <button class="chip" data-text="Где живут пингвины">🐧 Где живут пингвины</button>
+            <button class="chip" data-text="Что едят медведи">🐻 Что едят медведи</button>
+            <button class="chip" data-text="Кто быстрее лев или гепард">⚡ Сравнить лев и гепард</button>
+            <button class="chip" data-text="Интересные факты про дельфинов">🐬 Факты про дельфинов</button>
+        </section>
+
+        <footer class="chat-input">
+            <input
+                type="text"
+                id="messageInput"
+                placeholder="Введите ваш вопрос на русском языке..."
+                autocomplete="off"
+            >
+            <button class="btn-primary" id="sendBtn">
+                <span>Отправить</span>
+                <span class="send-icon">➤</span>
+            </button>
+        </footer>
+    </div>
+
+    <!-- ============== ВИД: ИСТОРИЯ ДИАЛОГОВ ============== -->
+    <div class="view view-history" id="view-history">
+        <header class="page-header">
+            <div class="header-info">
+                <h1>📜 История диалогов</h1>
+                <p class="subtitle">Все ваши предыдущие беседы с системой</p>
+            </div>
+            <div class="header-actions">
+                <input type="search" class="search-input" placeholder="🔍 Поиск..." id="historySearch">
+                <button class="icon-btn" title="Обновить" id="refreshHistoryBtn">🔄</button>
+            </div>
+        </header>
+
+        <div class="page-content">
+            <div class="stats-row" id="statsRow">
+                <div class="stat-card">
+                    <div class="stat-value" id="statTotalDialogues">—</div>
+                    <div class="stat-label">Всего диалогов</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="statTotalMessages">—</div>
+                    <div class="stat-label">Сообщений</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="statUniqueAnimals">—</div>
+                    <div class="stat-label">Уникальных животных</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="statTopIntent">—</div>
+                    <div class="stat-label">Топ интент</div>
+                </div>
+            </div>
+
+            <div class="history-list" id="historyList">
+                <div class="empty-state">Загрузка истории...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============== ВИД: ТЕМАТИКА ============== -->
+    <div class="view view-topics" id="view-topics">
+        <header class="page-header">
+            <div class="header-info">
+                <h1>📚 Тематика системы</h1>
+                <p class="subtitle">База знаний — справочник о животных мира</p>
+            </div>
+            <div class="header-actions">
+                <input type="search" class="search-input" placeholder="🔍 Найти животное..." id="topicsSearch">
+            </div>
+        </header>
+
+        <div class="page-content">
+            <div class="topics-categories" id="topicsCategories">
+                <button class="category-tab active" data-category="all">Все</button>
+                <!-- остальные категории генерируются динамически -->
+            </div>
+
+            <div class="topics-grid" id="topicsGrid">
+                <div class="empty-state">Загрузка базы знаний...</div>
+            </div>
+
+            <div class="topics-info-box">
+                <h3>🎯 Возможности системы</h3>
+                <ul>
+                    <li>📖 <strong>Получение информации</strong> о животном (категория, размер, ареал, рацион)</li>
+                    <li>🌍 <strong>Запрос среды обитания</strong> конкретного вида</li>
+                    <li>🍖 <strong>Запрос питания</strong> (рацион)</li>
+                    <li>💡 <strong>Интересные факты</strong> о животных</li>
+                    <li>⚡ <strong>Сравнение</strong> двух животных по параметрам</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============== ВИД: ДИАЛОГ ИЗ ИСТОРИИ ============== -->
+    <div class="view view-dialogue" id="view-dialogue">
+        <header class="page-header">
+            <div class="header-info">
+                <button class="btn-back" id="backToHistoryBtn">← К истории</button>
+                <h1 id="dialogueTitle">Просмотр диалога #—</h1>
+                <p class="subtitle" id="dialogueSubtitle">—</p>
+            </div>
+        </header>
+        <div class="page-content">
+            <div class="chat-messages chat-messages-readonly" id="dialogueMessages"></div>
+        </div>
+    </div>
+
+    <!-- ============== ВИД: СПРАВКА ============== -->
+    <div class="view view-help" id="view-help">
+        <header class="page-header">
+            <div class="header-info">
+                <h1>❓ Справка</h1>
+                <p class="subtitle">Как пользоваться диалоговой системой</p>
+            </div>
+        </header>
+
+        <div class="page-content">
+            <div class="help-grid">
+                <div class="help-section">
+                    <h2>🚀 Начало работы</h2>
+                    <p>Введите вопрос о животном на естественном русском языке и нажмите <kbd>Enter</kbd> или кнопку «Отправить».</p>
+                    <p>Можно использовать готовые подсказки внизу окна чата.</p>
+                </div>
+
+                <div class="help-section">
+                    <h2>💬 Типы запросов (интенты)</h2>
+                    <table class="help-table">
+                        <thead>
+                            <tr><th>Интент</th><th>Пример</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><span class="intent-tag">greeting</span></td><td>«Привет»</td></tr>
+                            <tr><td><span class="intent-tag">animal_info</span></td><td>«Расскажи про тигра»</td></tr>
+                            <tr><td><span class="intent-tag">habitat_query</span></td><td>«Где живут пингвины?»</td></tr>
+                            <tr><td><span class="intent-tag">diet_query</span></td><td>«Что едят медведи?»</td></tr>
+                            <tr><td><span class="intent-tag">facts_query</span></td><td>«Факты про дельфинов»</td></tr>
+                            <tr><td><span class="intent-tag">compare_animals</span></td><td>«Лев или гепард?»</td></tr>
+                            <tr><td><span class="intent-tag">goodbye</span></td><td>«Пока»</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="help-section">
+                    <h2>⌨️ Горячие клавиши</h2>
+                    <ul class="help-keys">
+                        <li><kbd>Enter</kbd> — отправить сообщение</li>
+                        <li><kbd>Esc</kbd> — очистить поле ввода</li>
+                    </ul>
+                </div>
+
+                <div class="help-section">
+                    <h2>🧠 Архитектура (логический уровень)</h2>
+                    <ol class="help-steps">
+                        <li><strong>NLU:</strong> токенизация → классификация интента → извлечение сущностей (spaCy + regex)</li>
+                        <li><strong>Dialog Manager:</strong> управление состоянием и контекстом</li>
+                        <li><strong>Knowledge Base:</strong> SQLite с информацией о животных</li>
+                        <li><strong>NLG:</strong> шаблонная генерация ответа</li>
+                        <li><strong>UI:</strong> отображение с метаданными (intent, entities)</li>
+                    </ol>
+                </div>
+
+                <div class="help-section help-section-wide">
+                    <h2>💡 Советы</h2>
+                    <div class="help-tips">
+                        <div class="tip">
+                            <div class="tip-icon">✅</div>
+                            <div>
+                                <strong>Хорошо:</strong> «Расскажи про тигров»<br>
+                                <small>Чёткий запрос с указанием животного</small>
+                            </div>
+                        </div>
+                        <div class="tip">
+                            <div class="tip-icon">✅</div>
+                            <div>
+                                <strong>Хорошо:</strong> «Где живут пингвины?»<br>
+                                <small>Конкретный вопрос об ареале</small>
+                            </div>
+                        </div>
+                        <div class="tip">
+                            <div class="tip-icon">⚠️</div>
+                            <div>
+                                <strong>Может не сработать:</strong> «Что там с этими?»<br>
+                                <small>Слишком неопределённо, нет сущности</small>
+                            </div>
+                        </div>
+                        <div class="tip">
+                            <div class="tip-icon">❌</div>
+                            <div>
+                                <strong>Не по теме:</strong> «Какая погода?»<br>
+                                <small>Система отвечает только про животных</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="help-section">
+                    <h2>📞 О лабораторной</h2>
+                    <p>Лабораторная работа №6 по дисциплине «ЕЯзИИС»</p>
+                    <p>Полнофункциональная реализация диалоговой системы</p>
+                    <p style="opacity:0.6;font-size:13px;margin-top:8px">Stack: Flask · spaCy · SQLite</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    </main>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

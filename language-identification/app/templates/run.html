@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% from "_macros.html" import lang_badge, percent %}
+{% block title %}Результаты {{ run.id }}{% endblock %}
+{% block content %}
+<h1>Результаты распознавания</h1>
+<p class="muted">
+    Запуск <code>{{ run.id }}</code> · {{ run.created }} · {{ source_titles.get(run.source, run.source) }} ·
+    методы: {% for key in run.methods %}{{ METHOD_TITLES[key] }}{% if not loop.last %}, {% endif %}{% endfor %}
+</p>
+
+<div class="actions no-print">
+    <a class="btn btn-secondary" href="{{ url_for('main.export_run', run_id=run.id, fmt='txt') }}">Сохранить отчёт (TXT)</a>
+    <a class="btn btn-secondary" href="{{ url_for('main.export_run', run_id=run.id, fmt='csv') }}">Сохранить таблицу (CSV / Excel)</a>
+    <a class="btn btn-secondary" href="{{ url_for('main.export_run', run_id=run.id, fmt='json') }}">Сохранить JSON</a>
+    <button class="btn" type="button" onclick="window.print()">Печать</button>
+</div>
+
+<div class="card">
+    <h2>Результаты по документам</h2>
+    <div class="table-scroll">
+    <table>
+        <thead>
+        <tr>
+            <th>№</th>
+            <th>Документ</th>
+            <th>Истинный язык</th>
+            {% for key in run.methods %}<th>{{ METHOD_TITLES[key] }}</th>{% endfor %}
+            <th>Итог</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for doc in run.documents %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>
+                    <a href="{{ url_for('main.run_file', run_id=run.id, filename=doc.filename) }}" target="_blank">{{ doc.filename }}</a>
+                    <div class="small muted no-print"><a href="{{ url_for('main.view_document', run_id=run.id, index=loop.index0) }}">подробнее</a>{% if not doc.error %} · {{ doc.words }} слов{% endif %}</div>
+                </td>
+                <td>{% if doc.true_language %}{{ lang_badge(doc.true_language) }}{% else %}<span class="muted">—</span>{% endif %}</td>
+                {% if doc.error %}
+                    <td colspan="{{ run.methods | length + 1 }}" class="fail small">{{ doc.error }}</td>
+                {% else %}
+                    {% for key in run.methods %}
+                        {% set r = doc.results[key] %}
+                        <td>
+                            {{ lang_badge(r.language) }}
+                            {% if doc.true_language and r.language %}
+                                {% if r.language == doc.true_language %}<span class="ok">✓</span>{% else %}<span class="fail">✗</span>{% endif %}
+                            {% endif %}
+                            {% if r.language %}<div class="small muted">{{ '%.4f' | format(r.scores[r.language]) }} · {{ '%.2f' | format(r.time_ms) }} мс</div>{% endif %}
+                        </td>
+                    {% endfor %}
+                    <td><strong>{{ doc.consensus | lang_name }}</strong></td>
+                {% endif %}
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+
+<h2>Сводная статистика</h2>
+<div class="stat-grid">
+    <div class="stat"><div class="value">{{ summary.total }}</div><div class="label">документов</div></div>
+    <div class="stat"><div class="value">{{ summary.processed }}</div><div class="label">обработано</div></div>
+    <div class="stat"><div class="value">{{ summary.errors }}</div><div class="label">ошибок чтения</div></div>
+    <div class="stat"><div class="value">{{ percent(summary.all_agree_share) }}</div><div class="label">все методы согласны</div></div>
+    <div class="stat"><div class="value">{{ percent(summary.consensus_accuracy) }}</div><div class="label">точность итога</div></div>
+</div>
+
+<div class="card">
+    <h2>Сравнение методов</h2>
+    <div class="table-scroll">
+    <table>
+        <thead>
+        <tr>
+            <th>Метод</th>
+            {% for lang in LANGUAGES %}<th class="num">{{ lang | lang_name }}</th>{% endfor %}
+            <th class="num">Не определён</th>
+            <th class="num">Верно</th>
+            <th class="num">Точность</th>
+            <th class="num">Ср. время</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for key, m in summary.methods.items() %}
+            <tr>
+                <td>{{ m.title }}{% if summary.best_method == key %} <span class="badge">лучший</span>{% endif %}</td>
+                {% for lang in LANGUAGES %}<td class="num">{{ m.distribution[lang] }}</td>{% endfor %}
+                <td class="num">{{ m.distribution[None] }}</td>
+                <td class="num">{% if summary.labeled %}{{ m.correct }} / {{ summary.labeled }}{% else %}—{% endif %}</td>
+                <td class="num">{{ percent(m.accuracy) }}</td>
+                <td class="num">{{ '%.2f' | format(m.avg_time_ms) }} мс</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% if not summary.labeled %}
+        <p class="small muted">Истинный язык документов неизвестен, поэтому точность не рассчитывается.
+            Добавьте префикс <code>ru_</code>/<code>en_</code> к именам файлов или используйте тестовую коллекцию.</p>
+    {% endif %}
+
+    {% if summary.pairwise %}
+        <h3>Попарное согласие методов</h3>
+        <table>
+            <tbody>
+            {% for pair in summary.pairwise.values() %}
+                <tr>
+                    <td>{{ METHOD_TITLES[pair.a] }} ↔ {{ METHOD_TITLES[pair.b] }}</td>
+                    <td style="width: 40%"><progress class="bar" value="{{ pair.share }}" max="1"></progress></td>
+                    <td class="num">{{ percent(pair.share) }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+</div>
+
+{% if summary.labeled %}
+<div class="card">
+    <h2>Матрицы ошибок</h2>
+    <p class="small muted">Строки — истинный язык, столбцы — язык, выбранный методом.</p>
+    <div class="grid-3">
+        {% for key, m in summary.methods.items() %}
+            <div>
+                <h3>{{ m.title }}</h3>
+                <table>
+                    <thead>
+                    <tr><th></th>{% for lang in LANGUAGES %}<th class="num">{{ lang }}</th>{% endfor %}<th class="num">?</th></tr>
+                    </thead>
+                    <tbody>
+                    {% for true_lang, row in m.confusion.items() %}
+                        <tr>
+                            <th>{{ true_lang }}</th>
+                            {% for lang in LANGUAGES %}
+                                <td class="num {% if row[lang] and lang == true_lang %}ok{% elif row[lang] %}fail{% endif %}">{{ row[lang] }}</td>
+                            {% endfor %}
+                            <td class="num {% if row[None] %}fail{% endif %}">{{ row[None] }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

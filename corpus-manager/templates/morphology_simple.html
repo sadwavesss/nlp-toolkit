@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Морфологический анализ - {{ corpus.name }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1, h2 { color: #333; }
+        .btn { display: inline-block; padding: 8px 16px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; margin: 5px; border: none; cursor: pointer; }
+        .btn:hover { background: #0056b3; }
+        .btn-secondary { background: #6c757d; }
+        .btn-secondary:hover { background: #545b62; }
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #1e7e34; }
+        .document-list { margin-top: 20px; }
+        .document-item { border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 4px; }
+        .alert { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div style="margin-bottom: 20px;">
+            <a href="{{ url_for('view_corpus', corpus_id=corpus.id) }}" class="btn btn-secondary">← К корпусу</a>
+        </div>
+        
+        <h1>Морфологический анализ</h1>
+        <p>Корпус: {{ corpus.name }}</p>
+        
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 4px; margin: 20px 0;">
+            <h2>Запуск анализа</h2>
+            <p>Нажмите кнопку ниже для запуска автоматического морфологического анализа всех документов корпуса.</p>
+            <button class="btn btn-success" onclick="runMorphology()">Запустить анализ</button>
+            <div id="morphology-result" style="margin-top: 20px;"></div>
+        </div>
+        
+        <div class="document-list">
+            <h2>Документы в корпусе</h2>
+            {% if documents %}
+                {% for doc in documents %}
+                <div class="document-item">
+                    <h4>{{ doc.title or doc.filename }}</h4>
+                    <p><strong>Файл:</strong> {{ doc.filename }}</p>
+                    <p><strong>Добавлен:</strong> {{ doc.created_at[:19] if doc.created_at else 'Неизвестно' }}</p>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p>Документов пока нет.</p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <script>
+        function runMorphology() {
+            const resultDiv = document.getElementById('morphology-result');
+            resultDiv.innerHTML = '<p>Выполняется морфологический анализ...</p>';
+            
+            fetch(`/corpus/{{ corpus.id }}/run_morphology`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <strong>Анализ завершен!</strong><br>
+                            Обработано документов: ${data.processed} из ${data.total}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-error">
+                            <strong>Ошибка:</strong> ${data.error}
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-error">
+                        <strong>Ошибка соединения:</strong> ${error}
+                    </div>
+                `;
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% from "_macros.html" import percent %}
+{% block title %}История{% endblock %}
+{% block content %}
+<h1>История запусков</h1>
+{% if not items %}
+    <p class="muted">Запусков пока нет. Загрузите документы на <a href="{{ url_for('main.index') }}">главной странице</a>.</p>
+{% else %}
+<div class="card table-scroll">
+    <table>
+        <thead>
+        <tr>
+            <th>Дата</th>
+            <th>Источник</th>
+            <th class="num">Документов</th>
+            {% for title in METHOD_TITLES.values() %}<th class="num">{{ title }}</th>{% endfor %}
+            <th class="no-print"></th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for run, summary in items %}
+            <tr>
+                <td><a href="{{ url_for('main.view_run', run_id=run.id) }}">{{ run.created }}</a></td>
+                <td>{{ 'Тестовая коллекция' if run.source == 'collection' else 'Загруженные документы' }}</td>
+                <td class="num">{{ summary.total }}</td>
+                {% for key in METHOD_TITLES %}
+                    <td class="num">{% if key in summary.methods %}{{ percent(summary.methods[key].accuracy) }}{% else %}<span class="muted">не применялся</span>{% endif %}</td>
+                {% endfor %}
+                <td class="no-print">
+                    <form method="post" action="{{ url_for('main.delete_run', run_id=run.id) }}" onsubmit="return confirm('Удалить запуск и его файлы?')">
+                        <button class="btn btn-danger btn-small" type="submit">Удалить</button>
+                    </form>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <p class="small muted">В столбцах методов — точность (если истинный язык документов известен).</p>
+</div>
+{% endif %}
+{% endblock %}

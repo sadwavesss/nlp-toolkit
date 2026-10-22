@@ -1,0 +1,105 @@
+@startuml message_flow
+title Блок-схема обработки реплики пользователя
+
+skinparam backgroundColor #FAFAFA
+skinparam activity {
+    BackgroundColor #FFFFFF
+    BorderColor #1976D2
+    DiamondBackgroundColor #FFF3E0
+    DiamondBorderColor #F57C00
+}
+
+start
+
+:Пользователь вводит реплику\nи нажимает «Отправить»;
+
+:Frontend отправляет\nPOST /api/send_message\n{"message": "..."};
+
+:Flask принимает запрос\n(app.py::send_message);
+
+if (Текст пустой?) then (да)
+    :Вернуть ошибку 400\n"Сообщение пустое";
+    stop
+else (нет)
+endif
+
+:NLU: nlp_processor.analyze_text(text);
+:Привести к нижнему регистру,\nудалить пробелы;
+
+partition "NLU: извлечение сущностей" {
+    :Поиск животных через regex\nпо словарю словоформ;
+    if (Нашли животных?) then (да)
+        :Привести к лемме\n(ANIMAL_FORMS);
+    else (нет)
+        if (spaCy установлен?) then (да)
+            :Лемматизация через spaCy;
+        else (нет)
+        endif
+    endif
+    :Поиск мест обитания (HABITATS);
+}
+
+partition "NLU: классификация интента" {
+    :Проход по intent_patterns\nпо порядку приоритета;
+    if (Совпал паттерн?) then (да)
+        if (intent = compare_animals\nи animals < 2?) then (да)
+            :Пропустить, идти дальше;
+        else (нет)
+            :intent найден;
+        endif
+    else (нет)
+        if (Есть животные?) then (да)
+            :intent = animal_info;
+        else (нет)
+            :intent = unknown;
+        endif
+    endif
+    :Рассчитать confidence;
+}
+
+:Сохранить сообщение пользователя в БД\nadd_message(dialogue_id, "user", ...);
+
+:DM: загрузить контекст диалога\n(last_animal, история);
+
+if (animals пуст,\nно есть в контексте?) then (да)
+    :Подставить из контекста\n(анафора);
+else (нет)
+endif
+
+partition "NLG: генерация ответа" {
+    switch (intent?)
+    case (greeting)
+        :Случайный шаблон\nприветствия;
+    case (goodbye)
+        :Случайный шаблон\nпрощания;
+    case (animal_info)
+        :KB: get_animal_info(name)\nПолное описание;
+    case (compare_animals)
+        :KB: 2× get_animal_info\nТаблица + выводы;
+    case (habitat_query)
+        :KB: ареал + размер;
+    case (diet_query)
+        :KB: рацион + факт;
+    case (facts_query)
+        :KB: факт + метаданные;
+    case (unknown)
+        :Подсказка-fallback;
+    endswitch
+}
+
+if (Животное найдено в БД?) then (нет)
+    :Ответ "не знаю,\nвот что я знаю...";
+else (да)
+endif
+
+:Сохранить ответ системы в БД\nadd_message(dialogue_id, "system", ...);
+
+:Обновить контекст диалога\n(last_animal, history);
+
+:Вернуть JSON клиенту:\n{response, intent, entities, confidence};
+
+:Frontend рендерит сообщение\nс intent-tag и entity-tag;
+
+stop
+
+@enduml

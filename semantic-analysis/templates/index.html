@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Семантико-синтаксический анализатор — Документы{% endblock %}
+
+{% block content %}
+<h2>Документы</h2>
+
+{% if error %}
+<div class="alert alert-danger">{{ error }}</div>
+{% endif %}
+
+<!-- Загрузка -->
+<div class="card mb-4">
+    <div class="card-header">Загрузить документ</div>
+    <div class="card-body">
+        <form id="uploadForm" enctype="multipart/form-data">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label">Файл</label>
+                    <input type="file" name="file" class="form-control" accept=".docx,.txt,.pdf,.html,.htm,.rtf" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Название</label>
+                    <input type="text" name="title" class="form-control" placeholder="Автоиз имени файла">
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">Загрузить</button>
+                </div>
+                <div class="col-md-3">
+                    <small class="text-muted">
+                        Форматы: DOCX, TXT, PDF, HTML, RTF<br>
+                        Макс. размер: 16 МБ
+                    </small>
+                </div>
+            </div>
+        </form>
+        <div id="uploadStatus" class="mt-2" style="display:none"></div>
+    </div>
+</div>
+
+{% if not analyzer_available %}
+<div class="alert alert-warning">
+    Модель spaCy не загружена — синтаксический анализ недоступен.
+    Выполните: <code>python -m spacy download ru_core_news_sm</code>
+</div>
+{% endif %}
+
+<!-- Список документов -->
+<div class="card">
+    <div class="card-header">Загруженные документы</div>
+    <div class="card-body">
+        {% if documents %}
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Файл</th>
+                    <th>Название</th>
+                    <th>Формат</th>
+                    <th>Дата загрузки</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for doc in documents %}
+                <tr>
+                    <td>{{ doc.id }}</td>
+                    <td>{{ doc.filename }}</td>
+                    <td>{{ doc.title or '—' }}</td>
+                    <td>{{ doc.format }}</td>
+                    <td>{{ doc.upload_date[:19] }}</td>
+                    <td>
+                        <a href="{{ url_for('analysis_page', doc_id=doc.id) }}" class="btn btn-sm btn-primary">Анализ</a>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteDoc({{ doc.id }})">Удалить</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted">Нет загруженных документов.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$('#uploadForm').on('submit', function(e) {
+    e.preventDefault();
+    var formData = new FormData(this);
+    var status = $('#uploadStatus').show().html('<div class="spinner-border text-primary spinner-border-sm"></div> Загрузка...');
+    $.ajax({
+        url: '/api/upload', data: formData, processData: false, contentType: false,
+        method: 'POST',
+        success: function(res) {
+            if (res.success) {
+                status.html('<div class="alert alert-success">Документ загружен! Перенаправление...</div>');
+                setTimeout(function() { location.href = '/analysis/' + res.doc_id; }, 1000);
+            } else {
+                status.html('<div class="alert alert-danger">' + res.error + '</div>');
+            }
+        },
+        error: function() { status.html('<div class="alert alert-danger">Ошибка загрузки</div>'); }
+    });
+});
+
+function deleteDoc(docId) {
+    if (!confirm('Удалить документ?')) return;
+    $.ajax({ url: '/api/delete/' + docId, method: 'DELETE',
+        success: function(res) { if (res.success) location.reload(); else alert(res.error); }
+    });
+}
+</script>
+{% endblock %}

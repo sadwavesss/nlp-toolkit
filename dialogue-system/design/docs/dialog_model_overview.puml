@@ -1,0 +1,70 @@
+@startuml dialog_model_overview
+title Трёхуровневая модель диалога — обзор связей между уровнями
+
+skinparam backgroundColor #FAFAFA
+skinparam PackageBackgroundColor #FFFFFF
+
+package "I. КОНЦЕПТУАЛЬНЫЙ УРОВЕНЬ\n(WHAT — что и зачем)" as L1 #E3F2FD {
+    rectangle "Цели и задачи\nпользователя" as Goals
+    rectangle "Предметная область\n«Животные мира»" as Domain
+    rectangle "Сценарии\nвзаимодействия" as Scenarios
+    rectangle "Семантика\nдиалога" as Semantics
+}
+
+package "II. ЛОГИЧЕСКИЙ УРОВЕНЬ\n(HOW — как устроено)" as L2 #FFF8E1 {
+    rectangle "Диалоговый\nменеджер" as DM
+    rectangle "NLU\n(intent + NER)" as NLU
+    rectangle "База знаний" as KB
+    rectangle "NLG\n(генерация ответа)" as NLG
+    rectangle "Хранилище\nдиалогов" as Store
+}
+
+package "III. ФИЗИЧЕСКИЙ УРОВЕНЬ\n(WITH WHAT — на чём реализовано)" as L3 #E8F5E9 {
+    rectangle "Flask + Python 3.12" as Flask
+    rectangle "spaCy\nru_core_news_sm" as Spacy
+    rectangle "SQLite\ndialog_system.db" as SQLite
+    rectangle "HTML/CSS/JS\n(клиент)" as Web
+    rectangle "REST API\n(JSON)" as REST
+}
+
+' Связи между уровнями (детализация)
+Goals -[#1976D2]-> DM : реализуется
+Domain -[#1976D2]-> KB : представляется
+Scenarios -[#1976D2]-> DM : управляются
+Semantics -[#1976D2]-> NLU : разбирается
+
+DM -[#F57C00]-> Flask : реализован\nна
+NLU -[#F57C00]-> Spacy : использует
+KB -[#F57C00]-> SQLite : хранится в
+NLG -[#F57C00]-> Flask : генерируется
+Store -[#F57C00]-> SQLite : хранится в
+DM -[#F57C00]-> REST : общается через
+Web -[#F57C00]-> REST : использует
+
+note as N1
+  <b>Концептуальный</b> — отвечает на вопросы:
+  «Что нужно пользователю?»,
+  «О чём диалог?», «Какая семантика?»
+  Не зависит от реализации.
+end note
+
+note as N2
+  <b>Логический</b> — отвечает на вопросы:
+  «Как организовать обработку?»,
+  «Какие модули нужны?»,
+  «Как они взаимодействуют?»
+  Не зависит от языка/фреймворка.
+end note
+
+note as N3
+  <b>Физический</b> — отвечает на вопросы:
+  «На каком стеке реализовано?»,
+  «Где развёрнуто?», «Какие файлы?»
+  Конкретные технологии.
+end note
+
+L1 .. N1
+L2 .. N2
+L3 .. N3
+
+@enduml

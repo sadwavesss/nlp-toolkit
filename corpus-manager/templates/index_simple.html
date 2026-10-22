@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Корпусный менеджер</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1 { color: #333; text-align: center; }
+        .btn { display: inline-block; padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; margin: 5px; }
+        .btn:hover { background: #0056b3; }
+        .corpus-list { margin-top: 20px; }
+        .corpus-item { background: #f8f9fa; padding: 20px; border-radius: 4px; margin-bottom: 15px; border-left: 4px solid #007bff; }
+        .corpus-item h3 { margin: 0 0 10px 0; color: #333; }
+        .corpus-item p { margin: 0 0 10px 0; color: #666; }
+        .corpus-meta { font-size: 0.9em; color: #999; }
+        .corpus-stats { display: flex; gap: 20px; margin: 10px 0; }
+        .corpus-stat { background: #e9ecef; padding: 8px 12px; border-radius: 4px; font-size: 0.9em; }
+        .corpus-stat-number { font-weight: bold; color: #007bff; }
+        .corpus-actions { display: flex; gap: 10px; margin-top: 10px; }
+        .btn-danger { background: #dc3545; }
+        .btn-danger:hover { background: #c82333; }
+        .alert { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Корпусный менеджер - Лабораторная работа №2</h1>
+
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{{ url_for('create_corpus') }}" class="btn">Создать новый корпус</a>
+            <a href="{{ url_for('help_page') }}" class="btn" style="background: #28a745;">Справка</a>
+        </div>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <div class="corpus-list">
+            <h2>Список корпусов</h2>
+            {% if corpora %}
+                {% for corpus in corpora %}
+                <div class="corpus-item">
+                    <h3>{{ corpus.name }}</h3>
+                    <p>{{ corpus.description or 'Нет описания' }}</p>
+                    <div class="corpus-stats">
+                        <div class="corpus-stat">
+                            <span class="corpus-stat-number">{{ corpus.documents_count }}</span> документов
+                        </div>
+                        <div class="corpus-stat">
+                            <span class="corpus-stat-number">{{ corpus.wordforms_count }}</span> словоформ
+                        </div>
+                    </div>
+                    <div class="corpus-meta">
+                        Создан: {{ corpus.created_at[:19] if corpus.created_at else 'Неизвестно' }}
+                    </div>
+                    <div class="corpus-actions">
+                        <a href="{{ url_for('view_corpus', corpus_id=corpus.id) }}" class="btn">Открыть</a>
+                        <form method="post" action="{{ url_for('delete_corpus', corpus_id=corpus.id) }}" style="display: inline;" onsubmit="return confirm('Вы уверены, что хотите удалить этот корпус и все его документы?')">
+                            <button type="submit" class="btn btn-danger">Удалить</button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p>Корпусов пока нет. Создайте первый корпус!</p>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

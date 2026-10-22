@@ -1,0 +1,86 @@
+@startuml er_diagram
+title ER-диаграмма БД SQLite (dialog_system.db)
+
+skinparam backgroundColor #FAFAFA
+skinparam linetype ortho
+hide circle
+skinparam class {
+    BackgroundColor #FFFFFF
+    BorderColor #1976D2
+    ArrowColor #455A64
+    FontSize 12
+}
+
+entity "dialogues" as dialogues #E3F2FD {
+    * **id** : INTEGER <<PK, AUTO>>
+    --
+    * session_id : TEXT <<UNIQUE>>
+      created_at : TIMESTAMP <<DEFAULT NOW>>
+      ended_at  : TIMESTAMP <<NULL>>
+      status    : TEXT <<DEFAULT 'active'>>
+      ' active | ended
+}
+
+entity "messages" as messages #FFF8E1 {
+    * **id** : INTEGER <<PK, AUTO>>
+    --
+    * dialogue_id : INTEGER <<FK → dialogues.id>>
+    * sender : TEXT <<CHECK 'user' | 'system'>>
+    * message_text : TEXT
+      intent : TEXT <<NULL>>
+      entities : TEXT <<JSON, NULL>>
+      timestamp : TIMESTAMP <<DEFAULT NOW>>
+}
+
+entity "animals_knowledge" as animals #C8E6C9 {
+    * **id** : INTEGER <<PK, AUTO>>
+    --
+    * name : TEXT <<UNIQUE>>
+    * category : TEXT
+      habitat : TEXT
+      diet : TEXT
+      size : TEXT
+      lifespan : TEXT
+      interesting_facts : TEXT
+      created_at : TIMESTAMP <<DEFAULT NOW>>
+}
+
+' === Связи ===
+dialogues ||--o{ messages : "1 диалог →\nмного сообщений"
+
+note right of dialogues
+  Сессия диалога.
+  session_id = UUID из Flask session.
+  При создании диалога с тем же session_id —
+  переактивируется (status='active').
+end note
+
+note right of messages
+  Все сообщения (user + system).
+  Поле **entities** хранит JSON-массив:
+  [{"text":"лев","type":"ANIMAL"}, ...]
+  Поле **intent** заполняется только для
+  сообщений пользователя.
+end note
+
+note bottom of animals
+  Справочная база знаний (read-only для DM).
+  Заполняется при первом запуске
+  методом populate_sample_data().
+  Связи с диалогами **нет** —
+  обращение по имени животного через
+  get_animal_info(name).
+end note
+
+note as N1 #F5F5F5
+  **Логическая связь (без FK):**
+  messages.entities[].text (тип ANIMAL)
+       ↔ animals_knowledge.name
+  Используется в response_generator
+  для получения данных при ответе.
+end note
+
+messages ..> animals : <<логическая\nсвязь>>
+N1 .. messages
+
+@enduml

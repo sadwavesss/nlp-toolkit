@@ -1,0 +1,68 @@
+@startuml dialog_model_conceptual
+title Концептуальный уровень модели диалога\n«Что система делает с точки зрения пользователя»
+
+skinparam backgroundColor #FAFAFA
+skinparam ActorBorderColor #1976D2
+skinparam UsecaseBackgroundColor #E3F2FD
+skinparam UsecaseBorderColor #1976D2
+skinparam PackageBackgroundColor #FFFFFF
+
+left to right direction
+
+actor "Пользователь" as User #LightBlue
+actor "Диалоговая\nсистема" as System #LightGreen
+
+rectangle "Предметная область:\n«Животные мира»" as Domain {
+
+    package "Цели пользователя" {
+        usecase "Получить информацию\nо животном" as UC1
+        usecase "Узнать ареал\nобитания" as UC2
+        usecase "Узнать рацион\nпитания" as UC3
+        usecase "Узнать интересные\nфакты" as UC4
+        usecase "Сравнить\nдва животных" as UC5
+        usecase "Поприветствовать\nи попрощаться" as UC6
+    }
+
+    package "Возможности системы" {
+        usecase "Понимать запросы\nна естественном языке" as SC1
+        usecase "Извлекать сущности\n(животные, ареал)" as SC2
+        usecase "Использовать\nконтекст диалога" as SC3
+        usecase "Формировать ответы\nна естественном языке" as SC4
+        usecase "Сохранять\nисторию общения" as SC5
+        usecase "Подсказывать\nварианты вопросов" as SC6
+    }
+}
+
+User --> UC1
+User --> UC2
+User --> UC3
+User --> UC4
+User --> UC5
+User --> UC6
+
+UC1 ..> SC1 : требует
+UC2 ..> SC2 : требует
+UC5 ..> SC2 : требует
+UC1 ..> SC4 : использует
+UC6 ..> SC4 : использует
+
+SC1 <.. System
+SC2 <.. System
+SC3 <.. System
+SC4 <.. System
+SC5 <.. System
+SC6 <.. System
+
+note right of Domain
+  <b>Предмет диалога:</b>
+  справочная информация
+  о животных мира.
+  ---
+  <b>Тип диалога:</b>
+  смешанная инициатива
+  (Q&A + подсказки)
+  ---
+  <b>Язык:</b> русский
+end note
+
+@enduml

@@ -1,0 +1,35 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Пользователь" as User
+
+rectangle "Приложение ЛР1" {
+  usecase "Открыть TXT/RTF" as UC_Open
+  usecase "Просмотреть текст" as UC_View
+  usecase "Анализ текста\n(токенизация + частоты + лексемы)" as UC_Analyze
+  usecase "Поиск/фильтрация\nпо подстроке" as UC_Search
+  usecase "Редактировать\nморфологию" as UC_EditMorph
+  usecase "Сохранить словарь\nв JSON" as UC_Save
+  usecase "Загрузить словарь\nиз JSON" as UC_Load
+  usecase "Экспортировать\nв CSV" as UC_Export
+  usecase "Справка" as UC_Help
+}
+
+User --> UC_Open
+User --> UC_View
+User --> UC_Analyze
+User --> UC_Search
+User --> UC_EditMorph
+User --> UC_Save
+User --> UC_Load
+User --> UC_Export
+User --> UC_Help
+
+UC_Open ..> UC_View : <<include>>
+UC_Analyze ..> UC_View : <<include>>
+UC_Search ..> UC_Analyze : <<extend>>
+UC_EditMorph ..> UC_Analyze : <<extend>>
+UC_Save ..> UC_Analyze : <<extend>>
+UC_Export ..> UC_Analyze : <<extend>>
+@enduml

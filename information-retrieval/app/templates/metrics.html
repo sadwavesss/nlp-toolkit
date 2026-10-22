@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Метрики{% endblock %}
+{% block content %}
+<h1>Оценка качества поиска</h1>
+<p class="muted">
+    Точность (Precision), полнота (Recall), F-мера и средняя точность (AP)
+    рассчитываются относительно эталонных оценок релевантности, которые
+    проставляются вручную на странице оценки запроса.
+</p>
+
+<div class="card">
+    <h2>Оценить новый запрос</h2>
+    <form class="search-form" method="get" action="{{ url_for('main.metrics_evaluate') }}">
+        <div class="field">
+            <label for="q">Запрос</label>
+            <input type="text" id="q" name="q" placeholder="например: договор аренда">
+        </div>
+        <div class="field" style="flex:0 0 200px;">
+            <label for="mode">Режим</label>
+            <select id="mode" name="mode">
+                <option value="and">И (все слова)</option>
+                <option value="or">ИЛИ (любое слово)</option>
+            </select>
+        </div>
+        <button class="btn" type="submit">Перейти к оценке</button>
+    </form>
+</div>
+
+{% if all_metrics %}
+<div class="card">
+    <h2>Сводная таблица по оценённым запросам</h2>
+    <table>
+        <thead>
+        <tr>
+            <th>Запрос</th>
+            <th>Режим</th>
+            <th>Найдено</th>
+            <th>Релевантных (эталон)</th>
+            <th>Найдено релевантных</th>
+            <th>Precision</th>
+            <th>Recall</th>
+            <th>F-мера</th>
+            <th>AP</th>
+            <th></th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for m in all_metrics %}
+        <tr>
+            <td>{{ m.query }}</td>
+            <td>{{ "И" if m.mode == "and" else "ИЛИ" }}</td>
+            <td>{{ m.retrieved }}</td>
+            <td>{{ m.relevant_total }}</td>
+            <td>{{ m.relevant_retrieved }}</td>
+            <td>{{ "%.3f"|format(m.precision) }}</td>
+            <td>{{ "%.3f"|format(m.recall) }}</td>
+            <td>{{ "%.3f"|format(m.f_measure) }}</td>
+            <td>{{ "%.3f"|format(m.average_precision) }}</td>
+            <td><a href="{{ url_for('main.metrics_evaluate', q=m.query, mode=m.mode) }}">изменить оценки</a></td>
+        </tr>
+        {% endfor %}
+        {% if mean %}
+        <tr style="font-weight:600;">
+            <td colspan="5">Среднее по всем запросам</td>
+            <td>{{ "%.3f"|format(mean.precision) }}</td>
+            <td>{{ "%.3f"|format(mean.recall) }}</td>
+            <td>{{ "%.3f"|format(mean.f_measure) }}</td>
+            <td>{{ "%.3f"|format(mean.average_precision) }}</td>
+            <td></td>
+        </tr>
+        {% endif %}
+        </tbody>
+    </table>
+</div>
+
+{% if chart %}
+<div class="card">
+    <h2>График метрик по запросам</h2>
+    <img src="data:image/png;base64,{{ chart }}" alt="Метрики качества по запросам" style="max-width:100%;">
+</div>
+{% endif %}
+
+{% else %}
+<div class="card">
+    <p class="muted">
+        Пока нет ни одного оценённого запроса. Введите запрос выше и
+        отметьте, какие из найденных документов действительно релевантны,
+        чтобы система рассчитала метрики качества.
+    </p>
+</div>
+{% endif %}
+{% endblock %}

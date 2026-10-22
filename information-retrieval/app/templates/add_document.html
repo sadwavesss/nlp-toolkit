@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Добавить документ{% endblock %}
+{% block content %}
+<h1>Добавить документ</h1>
+<div class="card">
+    <form method="post">
+        <div class="field">
+            <label for="title">Заголовок</label>
+            <input type="text" id="title" name="title" value="{{ title }}" required>
+        </div>
+        <div class="field">
+            <label for="text">Текст документа</label>
+            <textarea id="text" name="text" rows="12" required>{{ text }}</textarea>
+        </div>
+        <button class="btn" type="submit">Сохранить документ</button>
+    </form>
+</div>
+{% endblock %}

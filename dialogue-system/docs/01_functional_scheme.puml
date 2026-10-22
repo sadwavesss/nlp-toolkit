@@ -1,0 +1,73 @@
+@startuml functional_scheme
+title Функциональная схема диалоговой системы «Животные мира»
+
+skinparam backgroundColor #FAFAFA
+skinparam rectangle {
+    BackgroundColor #FFFFFF
+    BorderColor #455A64
+    FontSize 12
+}
+skinparam ArrowColor #1976D2
+skinparam ArrowFontSize 11
+
+' === Акторы и входы/выходы ===
+actor "Пользователь" as User #LightBlue
+
+rectangle "F1\nПрием реплики" as F1 #E3F2FD
+rectangle "F2\nПредобработка\n(нижний регистр, токенизация)" as F2 #E3F2FD
+rectangle "F3\nЛемматизация\n(spaCy + словарь словоформ)" as F3 #FFF8E1
+rectangle "F4\nИзвлечение сущностей\n(ANIMAL, HABITAT)" as F4 #FFF8E1
+rectangle "F5\nКлассификация интента\n(regex + приоритеты)" as F5 #FFF8E1
+rectangle "F6\nРасчет confidence" as F6 #FFF8E1
+
+rectangle "F7\nУправление диалогом\n(контекст, last_animal)" as F7 #FFE0B2
+rectangle "F8\nЗапрос к базе знаний\n(SELECT по лемме)" as F8 #C8E6C9
+rectangle "F9\nВыбор шаблона ответа\n(по интенту)" as F9 #F8BBD0
+rectangle "F10\nГенерация ответа\n(подстановка + рандомизация)" as F10 #F8BBD0
+
+rectangle "F11\nСохранение в БД\n(messages, dialogues)" as F11 #D1C4E9
+rectangle "F12\nОтправка ответа\n(JSON через REST)" as F12 #E1F5FE
+
+' === Потоки данных ===
+User -down-> F1 : текст\nна русском
+F1 -down-> F2 : raw_text
+F2 -down-> F3 : tokens
+F3 -down-> F4 : leммы
+F2 -right-> F5 : clean_text
+F3 -right-> F4
+F4 -right-> F5 : entities
+F5 -down-> F6 : intent
+
+F4 -down-> F7 : entities
+F5 -down-> F7 : intent
+F6 -down-> F7 : confidence
+
+F7 -right-> F8 : имя\nживотного
+F8 -right-> F9 : данные\nживотного
+F7 -down-> F9 : intent
+F9 -down-> F10 : шаблон + данные
+F10 -down-> F11 : текст\nответа
+F10 -down-> F12 : текст\nответа
+F11 -right-> F12 : OK
+F12 -up-> User : JSON-ответ\n+ метаданные
+
+note right of F3
+  Леммы: «львов»→«лев»,
+  «медведя»→«медведь»
+end note
+
+note right of F5
+  Порядок приоритета:
+  greeting → goodbye →
+  compare → facts →
+  habitat → diet →
+  animal_info → unknown
+end note
+
+note bottom of F8
+  База знаний:
+  10 видов животных,
+  6 атрибутов на каждый
+end note
+
+@enduml

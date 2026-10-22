@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Поиск{% endblock %}
+{% block content %}
+<h1>Поиск документов</h1>
+
+<div class="card">
+    <form class="search-form" method="get" action="{{ url_for('main.search') }}">
+        <div class="field">
+            <label for="q">Запрос</label>
+            <input type="text" id="q" name="q" value="{{ query }}"
+                   placeholder="например: договор аренда И НЕ расторжение">
+        </div>
+        <button class="btn" type="submit">Найти</button>
+    </form>
+    <form method="get" action="{{ url_for('main.search') }}" class="search-options" style="margin-top:14px;">
+        <input type="hidden" name="q" value="{{ query }}">
+        <label style="font-weight:normal;">
+            <input type="radio" name="mode" value="and" onchange="this.form.submit()" {% if mode == 'and' %}checked{% endif %}>
+            все слова должны быть в документе (И)
+        </label>
+        <label style="font-weight:normal;">
+            <input type="radio" name="mode" value="or" onchange="this.form.submit()" {% if mode == 'or' %}checked{% endif %}>
+            достаточно любого слова (ИЛИ)
+        </label>
+    </form>
+    <form method="get" action="{{ url_for('main.search') }}" class="search-options">
+        <input type="hidden" name="q" value="{{ query }}">
+        <input type="hidden" name="mode" value="{{ mode }}">
+        <div class="field" style="flex:0 0 160px;">
+            <label for="date_start">Дата с</label>
+            <input type="date" id="date_start" name="date_start" value="{{ date_start }}">
+        </div>
+        <div class="field" style="flex:0 0 160px;">
+            <label for="date_end">Дата по</label>
+            <input type="date" id="date_end" name="date_end" value="{{ date_end }}">
+        </div>
+        <button class="btn btn-secondary" type="submit">Применить фильтр по дате</button>
+    </form>
+    <p class="muted" style="margin-top:14px;">
+        Можно использовать логические операторы: <code>И</code>/<code>AND</code>,
+        <code>ИЛИ</code>/<code>OR</code>, <code>НЕ</code>/<code>NOT</code>, скобки
+        <code>( )</code>. Без операторов слова объединяются автоматически согласно
+        выбранному режиму выше.
+    </p>
+</div>
+
+{% if search_obj is not none %}
+    {% if search_obj.missing_words %}
+        <div class="flash flash-warning">
+            Следующие слова запроса не найдены ни в одном документе базы (система
+            использует стратегию поиска с отказами и не заменяет их синонимами):
+            {% for w in search_obj.missing_words %}<span class="badge">{{ w }}</span>{% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="card">
+        {% if results %}
+            <p class="muted">Найдено документов: {{ results|length }}</p>
+            {% for r in results %}
+            <div class="result-item">
+                <h3 class="result-title"><a href="{{ url_for('main.view_document', document_id=r.document_id) }}">{{ r.title }}</a></h3>
+                <div class="result-meta">
+                    ID {{ r.document_id }} · {{ r.date }} · релевантность {{ "%.3f"|format(r.rank) }}
+                </div>
+                {% if r.matched_words %}
+                <div>
+                    {% for w in r.matched_words %}<span class="badge">{{ w }}</span>{% endfor %}
+                </div>
+                {% endif %}
+                <p class="result-snippet">{{ r.snippet }}</p>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="muted">По вашему запросу ничего не найдено.</p>
+        {% endif %}
+    </div>
+{% endif %}
+{% endblock %}

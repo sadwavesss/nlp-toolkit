@@ -1,0 +1,78 @@
+@startuml
+!theme plain
+skinparam backgroundColor #FEFEFE
+
+title Последовательность обработки текста LAB4
+
+actor Пользователь
+participant "Flask\nApp" as Flask
+participant "Semantic\nAnalyzer" as Analyzer
+participant "spaCy\nModel" as Spacy
+participant "pymorphy3\n(Fallback)" as Morph
+participant "NLTK\nWordNet" as WordNet
+participant "Natasha\nNER" as Natasha
+participant "SQLite\nDatabase" as DB
+
+Пользователь -> Flask : Загрузить документ (DOCX)
+activate Flask
+
+Flask -> Analyzer : analyze_text(text)
+activate Analyzer
+
+alt spaCy доступен
+    Analyzer -> Spacy : nlp(text)
+    activate Spacy
+    Spacy --> Analyzer : doc (токены, леммы, синтаксис)
+    deactivate Spacy
+else spaCy не доступен
+    Analyzer -> Morph : parse(word)
+    activate Morph
+    Morph --> Analyzer : parse result
+    deactivate Morph
+end
+
+loop Для каждого предложения
+    Analyzer -> Analyzer : _analyze_tokens()
+    
+    Analyzer -> Analyzer : _lookup_senses(tokens)
+    
+    alt WordNet доступен
+        Analyzer -> WordNet : synsets(lemma, lang='rus')
+        activate WordNet
+        WordNet --> Analyzer : список synsets
+        
+        Analyzer -> WordNet : synset.hypernyms()
+        WordNet --> Analyzer : гиперонимы
+        deactivate WordNet
+        
+        Analyzer -> Analyzer : _translate_hypernym()
+        note right: Перевод гиперонимов
+        "feline" → "кошачье"
+    end
+    
+    Analyzer -> Analyzer : _assign_semantic_roles()
+    note right: Агент, Пациент,
+    Тема, Инструмент...
+    
+    alt Natasha доступен
+        Analyzer -> Natasha : сегментация + NER
+        activate Natasha
+        Natasha --> Analyzer : именованные сущности
+        deactivate Natasha
+    end
+end
+
+Analyzer -> DB : save_analysis(results)
+activate DB
+DB --> Analyzer : success
+deactivate DB
+
+Analyzer --> Flask : analysis_results
+(deactivate Analyzer)
+
+Flask --> Пользователь : HTML с таблицей
+note right: Токены + Семантические
+значения + Гиперонимы
+deactivate Flask
+
+@enduml

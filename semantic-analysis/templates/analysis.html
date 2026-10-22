@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+{% block title %}Анализ: {{ document.title or document.filename }}{% endblock %}
+
+{% block content %}
+<h2>Анализ: {{ document.title or document.filename }}</h2>
+<small class="text-muted">Формат: {{ document.format }} | Загружен: {{ document.upload_date[:19] }}</small>
+
+<div class="my-3">
+    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">← Назад</a>
+    <button class="btn btn-outline-primary" onclick="reanalyze({{ document.id }})">Переанализировать</button>
+    <a href="{{ url_for('export_analysis', doc_id=document.id) }}" class="btn btn-outline-success">Экспорт JSON</a>
+</div>
+
+<!-- Статистика -->
+<div class="row mb-4">
+    <div class="col-md-2">
+        <div class="card">
+            <div class="card-header">Части речи</div>
+            <div class="card-body"><table class="table table-sm">
+                {% for pos, cnt in pos_stats.items() %}
+                <tr><td>{{ pos }}</td><td>{{ cnt }}</td></tr>
+                {% endfor %}
+            </table></div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card">
+            <div class="card-header">Синтакс. связи</div>
+            <div class="card-body"><table class="table table-sm">
+                {% for deprel, cnt in deprel_stats.items() %}
+                <tr><td>{{ deprel }}</td><td>{{ cnt }}</td></tr>
+                {% endfor %}
+            </table></div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card">
+            <div class="card-header">Сущности (NER)</div>
+            <div class="card-body"><table class="table table-sm">
+                {% for label, cnt in entity_stats.items() %}
+                <tr><td>{{ label }}</td><td>{{ cnt }}</td></tr>
+                {% endfor %}
+                {% if not entity_stats %}
+                <tr><td colspan="2" class="text-muted">Не найдены</td></tr>
+                {% endif %}
+            </table></div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card">
+            <div class="card-header">Сем. роли</div>
+            <div class="card-body"><table class="table table-sm">
+                {% for role, cnt in role_stats.items() %}
+                <tr><td>{{ role }}</td><td>{{ cnt }}</td></tr>
+                {% endfor %}
+                {% if not role_stats %}
+                <tr><td colspan="2" class="text-muted">Не определены</td></tr>
+                {% endif %}
+            </table></div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card">
+            <div class="card-header">Тональность</div>
+            <div class="card-body"><table class="table table-sm">
+                {% for sentiment, cnt in sentiment_stats.items() %}
+                <tr>
+                    <td>
+                        {% if sentiment == "позитивная" %}
+                        <span class="text-success">{{ sentiment }}</span>
+                        {% elif sentiment == "негативная" %}
+                        <span class="text-danger">{{ sentiment }}</span>
+                        {% else %}
+                        <span class="text-secondary">{{ sentiment }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ cnt }}</td>
+                </tr>
+                {% endfor %}
+                {% if not sentiment_stats %}
+                <tr><td colspan="2" class="text-muted">Не определена</td></tr>
+                {% endif %}
+            </table></div>
+        </div>
+    </div>
+</div>
+
+<!-- Предложения -->
+{% for item in analysis %}
+<div class="card mb-3">
+    <div class="card-header d-flex justify-content-between">
+        <span>Предложение {{ loop.index }}: <small class="text-muted">{{ item.sentence.text[:80] }}{% if item.sentence.text|length > 80 %}...{% endif %}</small></span>
+        <span class="badge bg-info">{{ item.tokens|length }} токенов</span>
+    </div>
+    <div class="card-body">
+        <!-- Таблица токенов -->
+        <div class="table-responsive">
+            <table class="table table-sm table-hover token-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Слово</th>
+                        <th>Лемма</th>
+                        <th>Часть речи</th>
+                        <th>Морфология (клик для редактирования)</th>
+                        <th>Главное слово</th>
+                        <th>Тип связи</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tok in item.tokens %}
+                    <tr data-token-id="{{ tok.id }}">
+                        <td>{{ tok.position }}</td>
+                        <td><strong>{{ tok.text }}</strong></td>
+                        <td class="editable" data-field="lemma">{{ tok.lemma }}</td>
+                        <td class="editable" data-field="pos">{{ tok.pos_ru or tok.pos }}</td>
+                        <td class="editable" data-field="morph_ru"><small>{{ tok.morph_ru or tok.morph }}</small></td>
+                        <td>
+                            {% if tok.head_index == -1 %}
+                                <em>корень</em>
+                            {% elif tok.head_index >= 0 %}
+                                {% for t in item.tokens %}
+                                    {% if t.position == tok.head_index %}{{ t.text }}{% endif %}
+                                {% endfor %}
+                            {% endif %}
+                        </td>
+                        <td class="editable" data-field="deprel">{{ tok.deprel_ru or tok.deprel }}</td>
+                        <td><button class="btn btn-sm btn-outline-secondary edit-btn" onclick="editToken({{ tok.id }}, this)">&#9998;</button></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Именованные сущности -->
+        {% if item.entities %}
+        <h6 class="mt-3">Именованные сущности</h6>
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            {% for ent in item.entities %}
+            <span class="badge bg-primary entity-badge" title="{{ ent.description }}">
+                {{ ent.text }} <small>({{ ent.label_ru }})</small>
+            </span>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Семантические роли -->
+        {% if item.roles %}
+        <h6 class="mt-3">Семантические роли</h6>
+        <table class="table table-sm table-bordered">
+            <thead><tr><th>Токен</th><th>Роль</th><th>Предикат</th></tr></thead>
+            <tbody>
+                {% for role in item.roles %}
+                <tr>
+                    <td>{{ role.token_text }}</td>
+                    <td><span class="badge bg-warning text-dark">{{ role.role_ru }}</span></td>
+                    <td>{{ role.predicate_text or '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+        <!-- Смыслы слов -->
+        {% if item.senses %}
+        <h6 class="mt-3">Смысловые значения</h6>
+        <table class="table table-sm table-bordered">
+            <thead><tr><th>Слово</th><th>Значение</th><th>Гипероним</th></tr></thead>
+            <tbody>
+                {% for sense in item.senses %}
+                <tr>
+                    <td>{{ sense.token_text }}</td>
+                    <td>{{ sense.sense_ru }}</td>
+                    <td>{{ sense.hypernym_ru }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+        <!-- Семантические отношения -->
+        {% if item.relations %}
+        <h6 class="mt-3">Семантические отношения</h6>
+        <div class="relations-container">
+            {% for rel in item.relations %}
+            <div class="relation-item mb-2 p-2 bg-light border rounded">
+                <span class="badge bg-primary">{{ rel.subject_entity }}</span>
+                <span class="text-muted">({{ rel.subject_type }})</span>
+                <span class="mx-2 text-primary">→ <strong>{{ rel.relation_ru }}</strong> →</span>
+                <span class="badge bg-secondary">{{ rel.object_entity }}</span>
+                <span class="text-muted">({{ rel.object_type }})</span>
+                <small class="text-muted ms-2">[{{ "%.0f"|format(rel.confidence * 100) }}%]</small>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Тональность -->
+        {% if item.sentiment %}
+        <h6 class="mt-3">Тональность предложения</h6>
+        <div class="sentiment-badge">
+            {% if item.sentiment.label == "positive" %}
+            <span class="badge bg-success fs-6">{{ item.sentiment.label_ru }} ★ {{ "%.0f"|format(item.sentiment.score * 100) }}%</span>
+            {% elif item.sentiment.label == "negative" %}
+            <span class="badge bg-danger fs-6">{{ item.sentiment.label_ru }} ★ {{ "%.0f"|format(item.sentiment.score * 100) }}%</span>
+            {% else %}
+            <span class="badge bg-secondary fs-6">{{ item.sentiment.label_ru }}</span>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Дерево зависимостей -->
+        <div class="dep-tree-container mt-3">
+            <h6>Дерево зависимостей</h6>
+            <div class="dep-tree" id="tree-{{ item.sentence.id }}"
+                 data-tokens='{{ item.tokens | tojson }}'></div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{% if not analysis %}
+<div class="alert alert-info">Анализ не выполнен. Нажмите «Переанализировать».</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Деревья зависимостей
+document.querySelectorAll('.dep-tree[data-tokens]').forEach(function(el) {
+    try {
+        var tokens = JSON.parse(el.getAttribute('data-tokens'));
+        var children = {};
+        var root = -1;
+        for (var i = 0; i < tokens.length; i++) { children[i] = []; }
+        for (var i = 0; i < tokens.length; i++) {
+            var h = tokens[i].head_index;
+            if (h === -1) { root = i; }
+            else if (children[h]) { children[h].push(i); }
+        }
+        function render(idx, indent) {
+            var t = tokens[idx];
+            var line = ' '.repeat(indent) + t.text + ' [' + (t.deprel_ru || t.deprel) + ']\n';
+            if (children[idx]) {
+                for (var j = 0; j < children[idx].length; j++) {
+                    line += render(children[idx][j], indent + 2);
+                }
+            }
+            return line;
+        }
+        el.textContent = (root >= 0) ? render(root, 0) : 'Корень не найден';
+    } catch(e) { el.textContent = 'Ошибка построения дерева'; }
+});
+
+function reanalyze(docId) {
+    if (!confirm('Выполнить повторный анализ?')) return;
+    $.post('/api/analyze/' + docId, function(res) {
+        if (res.success) location.reload();
+        else alert('Ошибка: ' + res.error);
+    });
+}
+
+function editToken(tokenId, btn) {
+    var row = $(btn).closest('tr');
+    var editableCells = row.find('.editable');
+    var isEditing = row.data('editing');
+    if (isEditing) {
+        var updates = {};
+        editableCells.each(function() {
+            var field = $(this).data('field');
+            var input = $(this).find('input');
+            if (input.length) { updates[field] = input.val(); $(this).text(input.val()); }
+        });
+        $.ajax({
+            url: '/api/token/' + tokenId, method: 'PUT',
+            contentType: 'application/json', data: JSON.stringify(updates),
+            success: function(res) {
+                if (res.success) { row.data('editing', false); btn.innerHTML = '&#9998;'; }
+                else alert('Ошибка: ' + res.error);
+            }
+        });
+    } else {
+        editableCells.each(function() {
+            var val = $(this).text().trim();
+            $(this).html('<input type="text" class="form-control form-control-sm" value="' + val + '">');
+        });
+        row.data('editing', true);
+        btn.innerHTML = '&#128190;';
+    }
+}
+</script>
+{% endblock %}
