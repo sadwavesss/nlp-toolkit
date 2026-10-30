@@ -1,7 +1,3 @@
-"""Tokenization and lemmatization of Russian text with pymorphy3.
-
-Both documents and queries are reduced to lemmas, so a query matches any inflected form of a word.
-"""
 import re
 import threading
 
@@ -12,8 +8,6 @@ _WORD_RE = re.compile(r"[а-яёА-ЯЁa-zA-Z]+")
 _analyzer_lock = threading.Lock()
 _analyzer: pymorphy3.MorphAnalyzer | None = None
 
-# Russian stop words: they carry no meaning for full-text search
-# and are excluded from both the index and the query.
 STOPWORDS = frozenset("""
 и в во не что он на я с со как а то все она так его но да ты к у же вы за бы по
 только ее мне было вот от меня еще ещё нет о из ему теперь когда даже ну вдруг
@@ -38,18 +32,15 @@ def get_analyzer() -> pymorphy3.MorphAnalyzer:
 
 
 def tokenize(text: str) -> list[str]:
-    """Split text into words (no punctuation or digits)."""
     return _WORD_RE.findall(text.lower())
 
 
 def lemmatize_word(word: str) -> str:
-    """Return the normal form (lemma) of a word."""
     morph = get_analyzer()
     return morph.parse(word)[0].normal_form
 
 
 def lemmatize_text(text: str, drop_stopwords: bool = True) -> list[str]:
-    """Tokenize and lemmatize text, optionally dropping stop words."""
     morph = get_analyzer()
     lemmas = []
     for word in tokenize(text):

@@ -1,6 +1,6 @@
 import pytest
 
-from app.identifier import LanguageIdentifier
+from app.identifier import LanguageIdentifier, split_fragments, weighted_vote
 from app.methods import METHOD_CLASSES
 from app.methods.neural import NeuralMethod
 
@@ -61,14 +61,46 @@ def test_method_state_round_trips_through_dict(trained, key):
     assert restored.predict(text).scores == pytest.approx(trained[key].predict(text).scores)
 
 
-def test_identifier_trains_from_corpus_folder_and_caches_model(tmp_path):
+@pytest.mark.parametrize("key", [cls.key for cls in METHOD_CLASSES])
+def test_confidence_is_a_probability(trained, key):
+    for text, _ in UNSEEN:
+        assert 0.0 <= trained[key].predict(text).confidence <= 1.0
+    assert trained[key].predict(RU[:400]).confidence > 0.5
+
+
+def test_weighted_vote():
+    assert weighted_vote({"a": {"language": "ru", "confidence": 0.9}, "b": {"language": "en", "confidence": 0.3}}) == ("ru", 0.45)
+    assert weighted_vote({"a": {"language": "ru", "confidence": 0.5}, "b": {"language": "en", "confidence": 0.5}}) == (None, 0.0)
+    assert weighted_vote({"a": {"language": None, "confidence": 0.0}}) == (None, 0.0)
+
+
+def test_split_fragments_merges_short_tail():
+    fragments = split_fragments("Один два три четыре пять шесть. Семь восемь девять десять одиннадцать двенадцать. Тринадцать.")
+    assert len(fragments) == 2 and fragments[-1].endswith("Тринадцать.")
+
+
+def make_identifier(tmp_path):
     for lang, text in TEXTS.items():
         (tmp_path / "corpus" / lang).mkdir(parents=True)
         (tmp_path / "corpus" / lang / "train.txt").write_text(text, encoding="utf-8")
-    model_path = tmp_path / "models.json"
-
-    identifier = LanguageIdentifier(tmp_path / "corpus", model_path)
+    identifier = LanguageIdentifier(tmp_path / "corpus", tmp_path / "models.json")
     identifier.methods["neural"] = NeuralMethod(epochs=50, samples_per_language=100)
+    return identifier
+
+
+def test_segment_detects_mixed_document(tmp_path):
+    identifier = make_identifier(tmp_path)
+    text = " ".join(t for t, _ in UNSEEN)
+    result = identifier.segment(text, ["short_words", "alphabet"])
+    assert result["mixed"]
+    assert [s["language"] for s in result["segments"]] == ["ru", "en"]
+    assert result["shares"]["ru"] + result["shares"]["en"] == pytest.approx(1.0)
+    assert not identifier.segment(RU[:600], ["short_words", "alphabet"])["mixed"]
+
+
+def test_identifier_trains_from_corpus_folder_and_caches_model(tmp_path):
+    identifier = make_identifier(tmp_path)
+    model_path = tmp_path / "models.json"
     results = identifier.identify(UNSEEN[2][0], ["short_words", "alphabet"])
 
     assert model_path.exists()

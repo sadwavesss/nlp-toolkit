@@ -1,8 +1,10 @@
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 
 from . import metrics as metrics_module
+from . import suggest
 from .db import get_db
 from .document import Document
+from .docx_reader import DocxError, read_docx
 from .search import Search
 
 bp = Blueprint("main", __name__)
@@ -40,6 +42,35 @@ def add_document():
         flash("Не удалось добавить документ.", "error")
 
     return render_template("add_document.html", title="", text="")
+
+
+@bp.route("/documents/upload", methods=["POST"])
+def upload_documents():
+    files = [f for f in request.files.getlist("files") if f and f.filename]
+    if not files:
+        flash("Выберите хотя бы один файл .docx.", "error")
+        return redirect(url_for("main.add_document"))
+
+    added = []
+    for file in files:
+        if not file.filename.lower().endswith(".docx"):
+            flash(f"«{file.filename}»: поддерживаются только файлы .docx.", "error")
+            continue
+        try:
+            title, text = read_docx(file.stream, file.filename)
+        except DocxError as exc:
+            flash(f"«{file.filename}»: {exc}", "error")
+            continue
+        doc = Document(title=title, text=text)
+        if doc.add_document_to_base():
+            added.append(title)
+        else:
+            flash(f"«{file.filename}»: документ не содержит текста.", "error")
+
+    if added:
+        flash(f"Добавлено документов из DOCX: {len(added)} ({', '.join(added)}).", "success")
+        return redirect(url_for("main.documents"))
+    return redirect(url_for("main.add_document"))
 
 
 @bp.route("/documents/<int:document_id>")
@@ -89,14 +120,16 @@ def search():
     )
 
 
+@bp.route("/api/suggest")
+def api_suggest():
+    return jsonify(suggest.complete(request.args.get("q", "")))
+
+
 @bp.route("/help")
 def help_page():
     return render_template("help.html")
 
 
-# ------------------------------------------------------------------
-# Search quality evaluation (Precision / Recall / F-measure / AP)
-# ------------------------------------------------------------------
 @bp.route("/metrics")
 def metrics_overview():
     all_metrics = metrics_module.compute_all_metrics()

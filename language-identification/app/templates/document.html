@@ -14,6 +14,9 @@
 {% else %}
 <div class="stat-grid">
     <div class="stat"><div class="value">{{ doc.consensus | lang_name }}</div><div class="label">итоговый язык</div></div>
+    {% if doc.consensus_confidence is defined and doc.consensus_confidence is not none %}
+        <div class="stat"><div class="value">{{ percent(doc.consensus_confidence) }}</div><div class="label">уверенность итога (надёжность {{ doc.consensus_confidence | reliability }})</div></div>
+    {% endif %}
     <div class="stat"><div class="value">{{ doc.true_language | lang_name if doc.true_language else '—' }}</div><div class="label">истинный язык</div></div>
     <div class="stat"><div class="value">{{ doc.pages }}</div><div class="label">страниц</div></div>
     <div class="stat"><div class="value">{{ doc.chars }}</div><div class="label">символов</div></div>
@@ -27,6 +30,9 @@
         <h2>{{ method.title }}: {{ lang_badge(r.language) }}</h2>
         <p class="small muted">{{ method.description }}</p>
         {% if r.details.reason %}<p class="fail">{{ r.details.reason }}</p>{% endif %}
+        {% if r.language and r.confidence is defined %}
+            <p>Уверенность: <strong>{{ percent(r.confidence) }}</strong> <span class="small muted">— {{ method.confidence_name }}</span></p>
+        {% endif %}
 
         {% if r.scores %}
         <table>
@@ -101,6 +107,42 @@
         {% endif %}
     </div>
 {% endfor %}
+
+{% if doc.segmentation %}
+<div class="card">
+    <h2>Языковая разметка текста</h2>
+    <p class="small muted">
+        Текст разбит на фрагменты (предложения, не менее 6 слов). Язык каждого фрагмента определён
+        взвешенным голосованием методов; соседние фрагменты одного языка объединены.
+        Документ считается смешанным, если на второй язык приходится не менее 10 % текста.
+    </p>
+    <p>
+        {% if doc.segmentation.mixed %}<span class="badge badge-mixed">смешанный документ</span>
+        {% else %}<span class="badge">одноязычный документ</span>{% endif %}
+    </p>
+    <table>
+        <tbody>
+        {% for lang, share in doc.segmentation.shares.items() %}
+            <tr>
+                <td style="width: 20%">{{ lang | lang_name }}</td>
+                <td><progress class="bar" value="{{ share }}" max="1"></progress></td>
+                <td class="num" style="width: 15%">{{ percent(share) }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <h3>Фрагменты</h3>
+    {% for s in doc.segmentation.segments %}
+        <div class="segment segment-{{ s.language or 'none' }}">
+            <div class="small muted">
+                {{ lang_badge(s.language) }} уверенность {{ percent(s.confidence) }} ·
+                {{ s.fragments }} фрагм. · {{ s.chars }} симв.
+            </div>
+            <div>{{ s.text }}</div>
+        </div>
+    {% endfor %}
+</div>
+{% endif %}
 
 <div class="card">
     <h2>Извлечённый текст (фрагмент)</h2>

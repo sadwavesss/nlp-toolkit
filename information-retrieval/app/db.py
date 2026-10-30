@@ -29,7 +29,6 @@ def init_db() -> None:
 
 @click.command("init-db")
 def init_db_command() -> None:
-    """Recreate all tables (existing data is deleted)."""
     init_db()
     click.echo("База данных инициализирована.")
 

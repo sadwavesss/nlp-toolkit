@@ -5,10 +5,12 @@
 
 <div class="card">
     <form class="search-form" method="get" action="{{ url_for('main.search') }}">
-        <div class="field">
+        <div class="field autocomplete">
             <label for="q">Запрос</label>
-            <input type="text" id="q" name="q" value="{{ query }}"
-                   placeholder="например: договор аренда И НЕ расторжение">
+            <input type="text" id="q" name="q" value="{{ query }}" autocomplete="off"
+                   data-suggest-url="{{ url_for('main.api_suggest') }}"
+                   placeholder="например: договоры аренды, кроме расторжения">
+            <ul id="suggestions" class="suggestions" hidden></ul>
         </div>
         <button class="btn" type="submit">Найти</button>
     </form>
@@ -40,16 +42,30 @@
         Можно использовать логические операторы: <code>И</code>/<code>AND</code>,
         <code>ИЛИ</code>/<code>OR</code>, <code>НЕ</code>/<code>NOT</code>, скобки
         <code>( )</code>. Без операторов слова объединяются автоматически согласно
-        выбранному режиму выше.
+        выбранному режиму выше. Система понимает и обычную речь: «кроме», «без»,
+        «за исключением» — НЕ; «либо» — ИЛИ; «а также», «плюс» — И.
+        При вводе появляются подсказки слов из базы.
     </p>
 </div>
 
 {% if search_obj is not none %}
+    {% if search_obj.expression %}
+        <div class="card interpretation">
+            Система поняла запрос как: <code>{{ search_obj.expression }}</code>
+        </div>
+    {% endif %}
+
     {% if search_obj.missing_words %}
         <div class="flash flash-warning">
             Следующие слова запроса не найдены ни в одном документе базы (система
             использует стратегию поиска с отказами и не заменяет их синонимами):
             {% for w in search_obj.missing_words %}<span class="badge">{{ w }}</span>{% endfor %}
+            {% if search_obj.corrected_query %}
+                <div class="did-you-mean">
+                    Возможно, вы имели в виду:
+                    <a href="{{ url_for('main.search', q=search_obj.corrected_query, mode=mode, date_start=date_start, date_end=date_end) }}">{{ search_obj.corrected_query }}</a>
+                </div>
+            {% endif %}
         </div>
     {% endif %}
 
@@ -75,4 +91,5 @@
         {% endif %}
     </div>
 {% endif %}
+<script src="{{ url_for('static', filename='suggest.js') }}"></script>
 {% endblock %}

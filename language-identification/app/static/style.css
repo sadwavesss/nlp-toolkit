@@ -149,6 +149,11 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .badge-ru { background: #e8f0ff; color: #1f47c9; }
 .badge-en { background: #fdeee4; color: #b4471a; }
 .badge-none { background: #eee; color: var(--muted); }
+.badge-mixed { background: #f1e8ff; color: #6b2fc9; }
+.badge-warn { background: #fff6e0; color: #8a6100; }
+.segment { border-left: 4px solid #ccc; padding: 6px 12px; margin: 10px 0; background: #fafbfe; border-radius: 0 6px 6px 0; }
+.segment-ru { border-left-color: #1f47c9; }
+.segment-en { border-left-color: #b4471a; }
 .ok { color: var(--success); font-weight: 700; }
 .fail { color: var(--error); font-weight: 700; }
 

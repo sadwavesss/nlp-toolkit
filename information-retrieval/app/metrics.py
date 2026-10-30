@@ -1,13 +1,3 @@
-"""Search quality evaluation.
-
-- Precision = |A ∩ R| / |A|
-- Recall = |A ∩ R| / |R|
-- F-measure = 2PR / (P + R)
-- Average precision = mean precision at the ranks of relevant documents
-
-A is the set of retrieved documents, R is the set of relevant ones. Relevance judgments are entered
-by the user on the "Metrics" page and stored in `relevance_judgments`.
-"""
 from __future__ import annotations
 
 import base64
@@ -51,9 +41,6 @@ class QualityMetrics:
     ranked: list[RankedJudgment] = field(default_factory=list)
 
 
-# ----------------------------------------------------------------------
-# Storage of reference relevance judgments
-# ----------------------------------------------------------------------
 def get_judgments(query: str, mode: str) -> dict[int, bool]:
     db = get_db()
     rows = db.execute(
@@ -80,7 +67,6 @@ def save_judgments(query: str, mode: str, judgments: dict[int, bool]) -> None:
 
 
 def list_evaluated_queries() -> list[tuple[str, str]]:
-    """Unique (query, mode) pairs that have relevance judgments."""
     db = get_db()
     rows = db.execute(
         "SELECT DISTINCT query, mode FROM relevance_judgments ORDER BY query"
@@ -88,11 +74,7 @@ def list_evaluated_queries() -> list[tuple[str, str]]:
     return [(r["query"], r["mode"]) for r in rows]
 
 
-# ----------------------------------------------------------------------
-# Metric calculation
-# ----------------------------------------------------------------------
 def compute_metrics(query: str, mode: str) -> QualityMetrics:
-    """Run the query and compute quality metrics against the stored relevance judgments."""
     all_words_together = mode == "and"
     search_obj = Search(search_query=query, all_words_together=all_words_together)
     results: list[SearchResult] = search_obj.get_search_result()
@@ -148,9 +130,6 @@ def compute_all_metrics() -> list[QualityMetrics]:
     return [compute_metrics(q, m) for q, m in list_evaluated_queries()]
 
 
-# ----------------------------------------------------------------------
-# Charts (matplotlib -> PNG -> base64, embedded into HTML)
-# ----------------------------------------------------------------------
 def _fig_to_base64(fig) -> str:
     buf = io.BytesIO()
     fig.savefig(buf, format="png", bbox_inches="tight", dpi=110)
@@ -160,7 +139,6 @@ def _fig_to_base64(fig) -> str:
 
 
 def precision_recall_curve_image(metrics: QualityMetrics) -> str | None:
-    """Precision-recall curve for one query, interpolated at the 11 standard recall levels."""
     if not metrics.ranked or metrics.relevant_total == 0:
         return None
 
@@ -184,7 +162,6 @@ def precision_recall_curve_image(metrics: QualityMetrics) -> str | None:
 
 
 def summary_bar_chart_image(all_metrics: list[QualityMetrics]) -> str | None:
-    """Bar chart of Precision / Recall / F-measure / AP for all judged queries."""
     if not all_metrics:
         return None
 

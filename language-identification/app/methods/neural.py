@@ -11,6 +11,7 @@ class NeuralMethod(Method):
     title = "Нейросетевой метод (MLP)"
     metric_name = "1 − P(язык)"
     letters_count = len(LETTERS)
+    confidence_name = "вероятность языка на выходе softmax"
     description = (
         "Многослойный перцептрон, реализованный на NumPy: вход — относительные частоты букв "
         "русского и английского алфавитов и наиболее частых буквенных биграмм (с учётом границ "
@@ -162,7 +163,8 @@ class NeuralMethod(Method):
         probabilities = self._forward(x[None, :])[1][0]
         probs = {lang: float(probabilities[i]) for i, lang in enumerate(self.languages)}
         scores = {lang: 1.0 - p for lang, p in probs.items()}
-        return Prediction(min(scores, key=scores.get), scores, {"probabilities": probs})
+        language = min(scores, key=scores.get)
+        return Prediction(language, scores, {"probabilities": probs}, probs[language])
 
     @property
     def architecture(self) -> str:

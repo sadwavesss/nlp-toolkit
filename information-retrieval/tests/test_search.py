@@ -1,8 +1,12 @@
+import io
+import zipfile
+
 import pytest
 
-from app import create_app
+from app import create_app, suggest
 from app.db import init_db
 from app.document import Document
+from app.docx_reader import DocxError, read_docx
 from app.metrics import compute_metrics, save_judgments
 from app.search import Search
 from app.selection import DocumentSelector
@@ -31,7 +35,6 @@ def titles(ids):
 
 
 def test_query_matches_inflected_forms(app):
-    # "договоры" / "договора" are both lemmatized to "договор"
     assert titles(DocumentSelector().select("договоры").document_ids) == {"Договор аренды", "Расторжение договора"}
 
 
@@ -63,7 +66,6 @@ def test_results_are_ranked_by_tfidf_similarity(app):
 
 def test_metrics_against_relevance_judgments(app):
     ids = {Document.get_by_id(i).title: i for i in range(1, len(DOCUMENTS) + 1)}
-    # Only the IT document is relevant for "сеть"; one relevant document is never retrieved
     save_judgments("сеть", "and", {ids["Локальная сеть"]: True, ids["Рыбалка"]: False, ids["Договор аренды"]: True})
 
     metrics = compute_metrics("сеть", "and")
@@ -72,6 +74,50 @@ def test_metrics_against_relevance_judgments(app):
     assert metrics.precision == pytest.approx(1 / 3)
     assert metrics.recall == pytest.approx(1 / 2)
     assert metrics.f_measure == pytest.approx(0.4)
+
+
+def test_natural_language_operators(app):
+    result = DocumentSelector().select("договор кроме расторгнуть")
+    assert titles(result.document_ids) == {"Договор аренды"}
+    assert result.expression == "договор И НЕ расторгнуть"
+    assert titles(DocumentSelector().select("договор за исключением квартира").document_ids) == {"Расторжение договора"}
+
+
+def test_autocomplete_and_typo_correction(app):
+    assert suggest.complete("дог")[0]["word"] == "договор"
+    assert suggest.levenshtein("договор", "догвор") == 1
+    search = Search("догвор аренды")
+    search.get_search_result()
+    assert search.missing_words == ["догвор"]
+    assert search.corrected_query == "договор аренды"
+
+
+def make_docx(paragraphs, title=""):
+    w = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+    body = "".join(f"<w:p><w:r><w:t>{p}</w:t></w:r></w:p>" for p in paragraphs)
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        archive.writestr("word/document.xml", f'<w:document xmlns:w="{w}"><w:body>{body}</w:body></w:document>')
+        if title:
+            archive.writestr("docProps/core.xml", f'<cp:coreProperties xmlns:cp="x" xmlns:dc="http://purl.org/dc/elements/1.1/">'
+                                                  f"<dc:title>{title}</dc:title></cp:coreProperties>")
+    buffer.seek(0)
+    return buffer
+
+
+def test_docx_reader():
+    assert read_docx(make_docx(["Первый абзац.", "Второй абзац."]), "отчёт.docx") == ("отчёт", "Первый абзац.\nВторой абзац.")
+    assert read_docx(make_docx(["Текст"], title="Заголовок"))[0] == "Заголовок"
+    with pytest.raises(DocxError):
+        read_docx(io.BytesIO(b"not a zip"), "broken.docx")
+
+
+def test_docx_upload(app):
+    client = app.test_client()
+    response = client.post("/documents/upload", data={"files": (make_docx(["Аренда гаража на месяц."]), "гараж.docx")},
+                           content_type="multipart/form-data")
+    assert response.status_code == 302
+    assert "гараж" in titles(DocumentSelector().select("гараж").document_ids)
 
 
 def test_pages_render(app):

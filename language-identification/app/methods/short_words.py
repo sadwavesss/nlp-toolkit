@@ -2,7 +2,7 @@ import math
 from collections import Counter
 
 from ..text_utils import split_sentences, tokenize
-from .base import Method, Prediction
+from .base import Method, Prediction, posterior
 
 
 class ShortWordsMethod(Method):
@@ -15,6 +15,7 @@ class ShortWordsMethod(Method):
         "вероятностей его лексем (для отсутствующих в ПОЯ — минимальная вероятность). "
         "Метрика — средний отрицательный логарифм вероятности на лексему; выбирается минимум."
     )
+    confidence_name = "апостериорная вероятность языка по формуле Байеса (равные априорные вероятности)"
 
     def __init__(self, max_length: int = 5, min_count: int = 4):
         self.max_length = max_length
@@ -70,8 +71,10 @@ class ShortWordsMethod(Method):
             }}
             for token, count in Counter(all_tokens).most_common(15)
         ]
+        language = min(scores, key=scores.get)
+        probabilities = posterior(log_prob)
         return Prediction(
-            min(scores, key=scores.get),
+            language,
             scores,
             {
                 "tokens": n,
@@ -79,7 +82,9 @@ class ShortWordsMethod(Method):
                 "votes": dict(votes),
                 "coverage": coverage,
                 "top_tokens": top_tokens,
+                "posterior": probabilities,
             },
+            probabilities[language],
         )
 
     def to_dict(self) -> dict:

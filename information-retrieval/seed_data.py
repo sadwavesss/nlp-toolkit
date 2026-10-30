@@ -1,19 +1,7 @@
-"""Fill the database with demo documents (recreates it).
-
-Documents deliberately share vocabulary across topics (e.g. "сеть" appears both in IT and fishing texts),
-so AND / OR / NOT, relevance ranking and the date filter can be checked properly.
-
-Usage:
-    python seed_data.py
-"""
 from app import create_app
 from app.document import Document
 
-# (title, text, date as YYYY-MM-DD)
 SAMPLE_DOCUMENTS = [
-    # ---------------------------------------------------------------
-    # Contracts and legal documents
-    # ---------------------------------------------------------------
     (
         "Договор аренды офисного помещения",
         "Настоящий договор аренды заключён между арендодателем и арендатором "
@@ -107,9 +95,6 @@ SAMPLE_DOCUMENTS = [
         "2024-05-16",
     ),
 
-    # ---------------------------------------------------------------
-    # IT, local networks, security
-    # ---------------------------------------------------------------
     (
         "Инструкция по настройке локальной сети",
         "В статье описывается настройка локальной вычислительной сети: "
@@ -167,9 +152,6 @@ SAMPLE_DOCUMENTS = [
         "2024-07-30",
     ),
 
-    # ---------------------------------------------------------------
-    # Information retrieval, linguistics, AI
-    # ---------------------------------------------------------------
     (
         "Основы информационного поиска",
         "Информационно-поисковая система осуществляет отбор документов, "
@@ -228,9 +210,6 @@ SAMPLE_DOCUMENTS = [
         "2024-09-25",
     ),
 
-    # ---------------------------------------------------------------
-    # Other topics (to check NOT and filtering of irrelevant documents)
-    # ---------------------------------------------------------------
     (
         "Рецепт борща с говядиной",
         "Для приготовления борща потребуется говядина, свёкла, капуста, "

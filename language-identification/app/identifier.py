@@ -1,16 +1,46 @@
 import json
 import threading
 import time
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
 from .languages import LANGUAGES
 from .methods import METHOD_CLASSES
-from .text_utils import extract_pdf_text, preprocess
+from .text_utils import extract_pdf_text, preprocess, split_sentences, tokenize
+
+FRAGMENT_MIN_WORDS = 6
+MIXED_THRESHOLD = 0.1
 
 
 class CorpusError(RuntimeError):
     pass
+
+
+def weighted_vote(results: dict[str, dict]) -> tuple[str | None, float]:
+    support = Counter()
+    for r in results.values():
+        if r["language"]:
+            support[r["language"]] += r.get("confidence", 1.0)
+    ranked = support.most_common()
+    if not ranked or (len(ranked) > 1 and abs(ranked[0][1] - ranked[1][1]) < 1e-9):
+        return None, 0.0
+    return ranked[0][0], ranked[0][1] / len(results)
+
+
+def split_fragments(text: str, min_words: int = FRAGMENT_MIN_WORDS) -> list[str]:
+    fragments, buffer = [], []
+    for sentence in split_sentences(text):
+        buffer.append(sentence)
+        if len(tokenize(" ".join(buffer))) >= min_words:
+            fragments.append(" ".join(buffer))
+            buffer = []
+    if buffer:
+        if fragments:
+            fragments[-1] += " " + " ".join(buffer)
+        else:
+            fragments.append(" ".join(buffer))
+    return fragments
 
 
 class LanguageIdentifier:
@@ -100,6 +130,40 @@ class LanguageIdentifier:
                 "language": prediction.language,
                 "scores": prediction.scores,
                 "details": prediction.details,
+                "confidence": round(prediction.confidence, 6),
                 "time_ms": round((time.perf_counter() - started) * 1000, 3),
             }
         return results
+
+    def segment(self, text: str, method_keys: list[str]) -> dict:
+        self.ensure_ready()
+        segments: list[dict] = []
+        for fragment in split_fragments(text):
+            results = {}
+            for key in method_keys:
+                prediction = self.methods[key].predict(fragment)
+                results[key] = {"language": prediction.language, "confidence": prediction.confidence}
+            language, confidence = weighted_vote(results)
+            if segments and segments[-1]["language"] == language:
+                last = segments[-1]
+                total = last["chars"] + len(fragment)
+                last["confidence"] = (last["confidence"] * last["chars"] + confidence * len(fragment)) / total
+                last["chars"] = total
+                last["fragments"] += 1
+                last["text"] += " " + fragment
+            else:
+                segments.append({"language": language, "confidence": confidence, "chars": len(fragment), "fragments": 1, "text": fragment})
+
+        determined = sum(s["chars"] for s in segments if s["language"])
+        shares = {
+            lang: sum(s["chars"] for s in segments if s["language"] == lang) / determined if determined else 0.0
+            for lang in LANGUAGES
+        }
+        for s in segments:
+            if len(s["text"]) > 400:
+                s["text"] = s["text"][:400].rstrip() + "…"
+        return {
+            "segments": segments,
+            "shares": shares,
+            "mixed": sum(1 for share in shares.values() if share >= MIXED_THRESHOLD) > 1,
+        }

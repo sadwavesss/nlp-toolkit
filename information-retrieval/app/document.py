@@ -1,8 +1,3 @@
-"""Documents and their inverted index (lemma -> term frequency).
-
-Term weights (Aij = Qij * Bi, i.e. TF-IDF) are not used for selection, which is Boolean,
-but to rank the selected documents and to evaluate search quality.
-"""
 from __future__ import annotations
 
 import math
@@ -28,11 +23,7 @@ class Document:
         if not self.time:
             self.time = now.strftime("%H:%M:%S")
 
-    # ------------------------------------------------------------------
-    # Adding / removing documents
-    # ------------------------------------------------------------------
     def add_document_to_base(self) -> bool:
-        """Save the document and build its inverted lemma index."""
         if not self.title.strip() or not self.text.strip():
             return False
 
@@ -88,12 +79,8 @@ class Document:
             return None
         return Document(title=r["title"], text=r["text"], date=r["date"], time=r["time"], document_id=r["id"])
 
-    # ------------------------------------------------------------------
-    # Lemma statistics (IDF, TF-IDF, document vector)
-    # ------------------------------------------------------------------
     @staticmethod
     def get_lemm_inverse_frequency(lemm_id: int | None = None, lemm_str: str | None = None) -> tuple[bool, float]:
-        """Inverse document frequency of term i: Bi = log10(N / ni)."""
         db = get_db()
         if lemm_id is None:
             if lemm_str is None:
@@ -124,7 +111,6 @@ class Document:
 
     @staticmethod
     def get_lemm_weight_in_document(lemm_id: int, document_id: int) -> tuple[bool, float]:
-        """Weight of term i in document j: Aij = Qij * Bi (raw term frequency times IDF)."""
         db = get_db()
         row = db.execute(
             "SELECT tf FROM document_lemmas WHERE lemma_id = ? AND document_id = ?",
@@ -141,7 +127,6 @@ class Document:
 
     @staticmethod
     def get_document_vector(document_id: int) -> dict[int, float]:
-        """Document vector {lemma_id: weight Aij}."""
         db = get_db()
         rows = db.execute(
             "SELECT lemma_id FROM document_lemmas WHERE document_id = ?", (document_id,)

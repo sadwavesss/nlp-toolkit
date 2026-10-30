@@ -47,10 +47,20 @@
                             {% if doc.true_language and r.language %}
                                 {% if r.language == doc.true_language %}<span class="ok">✓</span>{% else %}<span class="fail">✗</span>{% endif %}
                             {% endif %}
-                            {% if r.language %}<div class="small muted">{{ '%.4f' | format(r.scores[r.language]) }} · {{ '%.2f' | format(r.time_ms) }} мс</div>{% endif %}
+                            {% if r.language %}<div class="small muted">{{ '%.4f' | format(r.scores[r.language]) }}{% if r.confidence is defined %} · {{ percent(r.confidence) }}{% endif %} · {{ '%.2f' | format(r.time_ms) }} мс</div>{% endif %}
                         </td>
                     {% endfor %}
-                    <td><strong>{{ doc.consensus | lang_name }}</strong></td>
+                    <td>
+                        <strong>{{ doc.consensus | lang_name }}</strong>
+                        {% if doc.consensus_confidence is defined and doc.consensus_confidence is not none %}
+                            <div class="small muted">уверенность {{ percent(doc.consensus_confidence) }}</div>
+                            {% if (doc.consensus_confidence | reliability) == 'низкая' %}<span class="badge badge-warn">ненадёжно</span>{% endif %}
+                        {% endif %}
+                        {% if doc.segmentation and doc.segmentation.mixed %}
+                            <div><span class="badge badge-mixed">смешанный</span></div>
+                            <div class="small muted">{% for lang, share in doc.segmentation.shares.items() if share %}{{ lang }} {{ percent(share) }}{% if not loop.last %} · {% endif %}{% endfor %}</div>
+                        {% endif %}
+                    </td>
                 {% endif %}
             </tr>
         {% endfor %}
@@ -66,6 +76,9 @@
     <div class="stat"><div class="value">{{ summary.errors }}</div><div class="label">ошибок чтения</div></div>
     <div class="stat"><div class="value">{{ percent(summary.all_agree_share) }}</div><div class="label">все методы согласны</div></div>
     <div class="stat"><div class="value">{{ percent(summary.consensus_accuracy) }}</div><div class="label">точность итога</div></div>
+    <div class="stat"><div class="value">{{ percent(summary.avg_confidence) }}</div><div class="label">средняя уверенность итога</div></div>
+    <div class="stat"><div class="value">{{ summary.low_confidence }}</div><div class="label">ненадёжных решений</div></div>
+    <div class="stat"><div class="value">{{ summary.mixed }}</div><div class="label">смешанных документов</div></div>
 </div>
 
 <div class="card">

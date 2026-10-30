@@ -1,9 +1,9 @@
-"""Search: Boolean selection (DocumentSelector) followed by TF-IDF cosine-similarity ranking."""
 from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
 
+from . import suggest
 from .db import get_db
 from .document import Document
 from .selection import DocumentSelector
@@ -35,12 +35,10 @@ class Search:
         self.date_end_string = date_end_string
         self.missing_words: list[str] = []
         self.used_explicit_operators = False
+        self.expression = ""
+        self.corrected_query: str | None = None
 
-    # ------------------------------------------------------------------
-    # Ranking (applied on top of Boolean selection)
-    # ------------------------------------------------------------------
     def _get_search_query_vector(self, positive_lemmas: dict[str, str]) -> dict[int, float]:
-        """Query vector {lemma_id: IDF}; term frequency in short queries is assumed to be 1."""
         db = get_db()
         vector: dict[int, float] = {}
         for lemma in positive_lemmas:
@@ -69,15 +67,15 @@ class Search:
             return 0.0
         return numerator / denominator
 
-    # ------------------------------------------------------------------
-    # Search results page
-    # ------------------------------------------------------------------
     def get_search_result(self) -> list[SearchResult]:
         selector = DocumentSelector(all_words_together=self.all_words_together)
         selection = selector.select(self.search_query)
 
         self.missing_words = selection.missing_words
         self.used_explicit_operators = selection.used_explicit_operators
+        self.expression = selection.expression
+        if self.missing_words:
+            self.corrected_query = suggest.correct_query(self.search_query, self.missing_words)
 
         if not selection.document_ids:
             return []

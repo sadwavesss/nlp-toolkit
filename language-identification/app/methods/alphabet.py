@@ -12,6 +12,7 @@ class AlphabetMethod(Method):
         "распределение частот всех его букв; метрика — сумма модулей разностей частот (буквы вне "
         "алфавита языка дают полное несовпадение). Выбирается язык с минимальным расстоянием."
     )
+    confidence_name = "относительный отрыв от второго языка: 1 − d₁ / d₂"
 
     def __init__(self):
         self.profiles: dict[str, dict[str, float]] = {}
@@ -51,10 +52,13 @@ class AlphabetMethod(Method):
             }}
             for c, f in sorted(frequencies.items(), key=lambda item: -item[1])[:12]
         ]
+        ranked = sorted(scores.values())
+        confidence = 1.0 - ranked[0] / ranked[1] if len(ranked) > 1 and ranked[1] > 0 else 1.0
         return Prediction(
             min(scores, key=scores.get),
             scores,
             {"letters": total, "outside_alphabet": outside, "top_letters": top_letters},
+            confidence,
         )
 
     def to_dict(self) -> dict:

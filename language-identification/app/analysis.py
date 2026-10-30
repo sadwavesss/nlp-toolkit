@@ -4,11 +4,10 @@ import json
 import re
 import shutil
 import uuid
-from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
-from .identifier import LanguageIdentifier
+from .identifier import LanguageIdentifier, weighted_vote
 from .languages import LANGUAGES, language_name
 from .methods import METHOD_TITLES
 from .text_utils import extract_pdf_text, tokenize
@@ -18,6 +17,8 @@ LABEL_RE = re.compile(r"^(ru|en)[_\-\s.]", re.IGNORECASE)
 INVALID_CHARS_RE = re.compile(r'[\\/:*?"<>|\x00-\x1f]')
 
 SOURCE_TITLES = {"upload": "Загруженные документы", "collection": "Тестовая коллекция"}
+HIGH_CONFIDENCE = 0.9
+LOW_CONFIDENCE = 0.6
 
 
 def label_from_filename(name: str) -> str | None:
@@ -71,12 +72,12 @@ class RunStorage:
         return True
 
 
-def consensus(results: dict[str, dict]) -> str | None:
-    votes = Counter(r["language"] for r in results.values() if r["language"])
-    ranked = votes.most_common()
-    if not ranked or (len(ranked) > 1 and ranked[0][1] == ranked[1][1]):
-        return None
-    return ranked[0][0]
+def reliability(confidence: float | None) -> str:
+    if confidence is None:
+        return ""
+    if confidence >= HIGH_CONFIDENCE:
+        return "высокая"
+    return "средняя" if confidence >= LOW_CONFIDENCE else "низкая"
 
 
 def analyze_document(identifier: LanguageIdentifier, path: Path, true_language: str | None, method_keys: list[str]) -> dict:
@@ -90,6 +91,8 @@ def analyze_document(identifier: LanguageIdentifier, path: Path, true_language: 
         "error": None,
         "results": {},
         "consensus": None,
+        "consensus_confidence": None,
+        "segmentation": None,
     }
     try:
         text, document["pages"] = extract_pdf_text(path)
@@ -103,7 +106,8 @@ def analyze_document(identifier: LanguageIdentifier, path: Path, true_language: 
         return document
 
     document["results"] = identifier.identify(text, method_keys)
-    document["consensus"] = consensus(document["results"])
+    document["consensus"], document["consensus_confidence"] = weighted_vote(document["results"])
+    document["segmentation"] = identifier.segment(text, method_keys)
     return document
 
 
@@ -155,7 +159,11 @@ def summarize(run: dict) -> dict:
         key=lambda k: (methods[k]["accuracy"], -methods[k]["avg_time_ms"]),
         default=None,
     )
+    confidences = [d["consensus_confidence"] for d in processed if d.get("consensus_confidence") is not None]
     return {
+        "mixed": sum(1 for d in processed if (d.get("segmentation") or {}).get("mixed")),
+        "avg_confidence": sum(confidences) / len(confidences) if confidences else None,
+        "low_confidence": sum(1 for c in confidences if c < LOW_CONFIDENCE),
         "total": len(documents),
         "processed": len(processed),
         "errors": len(documents) - len(processed),
@@ -199,8 +207,13 @@ def export_txt(run: dict, summary: dict) -> str:
             r = d["results"][key]
             metric = r["scores"].get(r["language"]) if r["language"] else None
             metric_text = f"{metric:.4f}" if metric is not None else "—"
-            lines.append(f"   {METHOD_TITLES[key]}: {language_name(r['language'])} (метрика {metric_text}, {r['time_ms']:.2f} мс)")
-        lines.append(f"   Итог (большинство методов): {language_name(d['consensus'])}")
+            confidence = f", уверенность {_percent(r['confidence'])}" if "confidence" in r else ""
+            lines.append(f"   {METHOD_TITLES[key]}: {language_name(r['language'])} (метрика {metric_text}{confidence}, {r['time_ms']:.2f} мс)")
+        confidence = d.get("consensus_confidence")
+        suffix = f" — уверенность {_percent(confidence)}, надёжность {reliability(confidence)}" if confidence is not None else ""
+        lines.append(f"   Итог (взвешенное голосование методов): {language_name(d['consensus'])}{suffix}")
+        if (d.get("segmentation") or {}).get("mixed"):
+            lines.append(f"   Смешанный документ: {shares_text(d)}")
 
     lines += [
         "",
@@ -210,6 +223,8 @@ def export_txt(run: dict, summary: dict) -> str:
         f"С известным языком: {summary['labeled']}",
         f"Все методы согласны: {summary['all_agree']} ({_percent(summary['all_agree_share'])})",
         f"Точность итогового решения: {_percent(summary['consensus_accuracy'])}",
+        f"Средняя уверенность итога: {_percent(summary['avg_confidence'])}, решений с низкой уверенностью: {summary['low_confidence']}",
+        f"Смешанных (многоязычных) документов: {summary['mixed']}",
         "",
     ]
     for key, m in summary["methods"].items():
@@ -230,7 +245,7 @@ def export_csv(run: dict) -> str:
     header = ["№", "Файл", "Истинный язык", "Страниц", "Символов", "Слов"]
     for key in run["methods"]:
         header += [f"{METHOD_TITLES[key]}: язык", f"{METHOD_TITLES[key]}: метрика", f"{METHOD_TITLES[key]}: время, мс"]
-    writer.writerow(header + ["Итог", "Ошибка"])
+    writer.writerow(header + ["Итог", "Уверенность итога", "Доли языков", "Ошибка"])
     for i, d in enumerate(run["documents"], 1):
         row = [i, d["filename"], language_name(d["true_language"]) if d["true_language"] else "", d["pages"], d["chars"], d["words"]]
         for key in run["methods"]:
@@ -240,8 +255,19 @@ def export_csv(run: dict) -> str:
                 row += [language_name(r["language"]), f"{metric:.4f}".replace(".", ",") if metric is not None else "", f"{r['time_ms']:.3f}".replace(".", ",")]
             else:
                 row += ["", "", ""]
-        writer.writerow(row + [language_name(d["consensus"]) if not d["error"] else "", d["error"] or ""])
+        confidence = d.get("consensus_confidence")
+        writer.writerow(row + [
+            language_name(d["consensus"]) if not d["error"] else "",
+            f"{confidence:.3f}".replace(".", ",") if confidence is not None else "",
+            shares_text(d),
+            d["error"] or "",
+        ])
     return "\ufeff" + buffer.getvalue()
+
+
+def shares_text(document: dict) -> str:
+    shares = (document.get("segmentation") or {}).get("shares") or {}
+    return ", ".join(f"{language_name(lang)} {_percent(share)}" for lang, share in shares.items() if share)
 
 
 def export_json(run: dict, summary: dict) -> str:

@@ -3,7 +3,7 @@ from pathlib import Path
 
 from flask import Flask
 
-from .analysis import RunStorage
+from .analysis import RunStorage, reliability
 from .identifier import LanguageIdentifier
 from .languages import LANGUAGES, language_name
 from .methods import METHOD_CLASSES, METHOD_TITLES
@@ -28,6 +28,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.extensions["runs"] = RunStorage(app.config["RUNS_DIR"])
 
     app.add_template_filter(language_name, "lang_name")
+    app.add_template_filter(reliability, "reliability")
     app.jinja_env.globals.update(
         LANGUAGES=LANGUAGES,
         METHOD_TITLES=METHOD_TITLES,

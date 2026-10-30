@@ -12,6 +12,13 @@ The MLP is implemented **from scratch in NumPy**: He initialization, forward pas
 backpropagation and the Adam optimizer. It is trained on random-length fragments of the training texts
 with an 80/20 train/validation split; the training curve is shown in the UI.
 
+Each method also reports a confidence: the relative margin to the second language (alphabet), the Bayesian
+posterior with equal priors (short words) and the softmax probability (neural network). The final answer is a
+confidence-weighted vote of the methods, labelled as high / medium / low reliability.
+
+Mixed-language documents are split into fragments of at least six words, each fragment is classified separately
+and adjacent fragments with the same language are merged, which gives the share of each language in the document.
+
 ## Results
 
 Training corpus: ~100 KB of Wikipedia text per language. Test collection: 20 one-page PDF articles on other topics

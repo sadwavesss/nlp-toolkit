@@ -150,3 +150,32 @@ th { color: var(--muted); font-size: 0.85rem; text-transform: uppercase; }
 .muted { color: var(--muted); }
 .footer { color: var(--muted); font-size: 0.85rem; text-align: center; }
 code { background: #eef1fb; padding: 1px 6px; border-radius: 4px; }
+
+.autocomplete { position: relative; }
+.suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    margin: 4px 0 0;
+    padding: 4px 0;
+    list-style: none;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-shadow: 0 6px 18px rgba(28, 35, 51, 0.12);
+}
+.suggestions li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    cursor: pointer;
+}
+.suggestions li.active, .suggestions li:hover { background: #eef1fb; }
+.suggest-tag { font-size: 0.75rem; color: #8a6100; background: #fff6e0; border-radius: 10px; padding: 1px 8px; }
+.suggest-count { margin-left: auto; color: var(--muted); font-size: 0.8rem; }
+.interpretation { padding: 12px 20px; }
+.did-you-mean { margin-top: 8px; }
+.did-you-mean a { font-weight: 600; color: var(--primary); }

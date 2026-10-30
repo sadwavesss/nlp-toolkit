@@ -15,4 +15,19 @@
         <button class="btn" type="submit">Сохранить документ</button>
     </form>
 </div>
+
+<div class="card">
+    <h2>Загрузить из файлов Word (.docx)</h2>
+    <form method="post" action="{{ url_for('main.upload_documents') }}" enctype="multipart/form-data">
+        <div class="field">
+            <label for="files">Файлы .docx (можно выбрать несколько)</label>
+            <input type="file" id="files" name="files" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple required>
+        </div>
+        <p class="muted">
+            Заголовок берётся из свойств документа Word, а если он не задан — из имени файла.
+            Текст всех абзацев и таблиц будет проиндексирован так же, как при ручном вводе.
+        </p>
+        <button class="btn" type="submit">Загрузить</button>
+    </form>
+</div>
 {% endblock %}

@@ -12,6 +12,7 @@ from fpdf import FPDF
 ROOT = Path(__file__).resolve().parent
 CORPUS_DIR = ROOT / "corpus"
 TEST_DIR = ROOT / "test_docs"
+EXAMPLES_DIR = ROOT / "examples"
 TRAIN_LIMIT_BYTES = 100_000
 TEST_PAGE_CHARS = 2600
 USER_AGENT = "LangIdLab/1.0 (educational project)"
@@ -166,6 +167,20 @@ def build_tests(lang: str, titles: list[str], font: Path) -> None:
         print(f"  {path.name}: «{title}», {len(text)} символов")
 
 
+def build_mixed(font: Path) -> None:
+    EXAMPLES_DIR.mkdir(parents=True, exist_ok=True)
+    parts = []
+    for lang in ("ru", "en"):
+        files = sorted((CORPUS_DIR / lang).glob("*.txt"))
+        if not files:
+            print(f"  [!] нет корпуса {lang} для смешанного примера")
+            return
+        parts.append(take(files[0].read_text(encoding="utf-8"), TEST_PAGE_CHARS // 2))
+    path = EXAMPLES_DIR / "mixed_ru_en.pdf"
+    write_pdf(path, "Смешанный документ / Mixed document", "\n".join(parts), font)
+    print(f"  {path.relative_to(ROOT)}: русский + английский текст")
+
+
 def main() -> None:
     font = find_font()
     for lang, sets in ARTICLES.items():
@@ -173,6 +188,8 @@ def main() -> None:
         build_corpus(lang, sets["train"])
         print(f"Тестовая коллекция [{lang}]")
         build_tests(lang, sets["test"], font)
+    print("Пример смешанного документа")
+    build_mixed(font)
     model = ROOT / "instance" / "models.json"
     if model.exists():
         model.unlink()

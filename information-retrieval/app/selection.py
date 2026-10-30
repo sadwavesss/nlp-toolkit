@@ -1,19 +1,3 @@
-"""Boolean document selection.
-
-A natural-language query is lemmatized and turned into a Boolean expression over the sets of
-documents containing each lemma. Query words that are missing from the index are reported to the
-user (`missing_words`) instead of being silently dropped.
-
-Grammar (operators in Russian, English or as symbols):
-    expr   := term (OR term)*
-    term   := factor (AND factor)*
-    factor := NOT factor | '(' expr ')' | WORD
-    AND    := И | AND | &
-    OR     := ИЛИ | OR | '|'
-    NOT    := НЕ | NOT | '!'
-
-Without explicit operators all meaningful words are joined with AND (all_words_together) or OR.
-"""
 from __future__ import annotations
 
 import re
@@ -22,35 +6,36 @@ from dataclasses import dataclass, field
 from . import nlp
 from .db import get_db
 
-_AND_WORDS = {"и", "and"}
-_OR_WORDS = {"или", "or"}
-_NOT_WORDS = {"не", "not"}
+_AND_WORDS = {"и", "and", "плюс"}
+_OR_WORDS = {"или", "or", "либо"}
+_NOT_WORDS = {"не", "not", "кроме", "без", "исключая"}
 _OPERATOR_SYMBOLS = {"&", "&&", "|", "||", "!", "(", ")"}
+_OPERATOR_PHRASES = {
+    ("за", "исключением"): "не",
+    ("но", "не"): "не",
+    ("а", "также"): "и",
+    ("вместе", "с"): "и",
+}
 
-_TOKEN_RE = re.compile(r"\(|\)|&&|\|\||[&|!]|[^\s()]+")
+_TOKEN_RE = re.compile(r"\(|\)|&&|\|\||[&|!]|[а-яёa-z]+")
 
 
 @dataclass
 class SelectionResult:
     document_ids: set[int]
-    # positive (not negated) query lemmas -> the word typed by the user
     positive_lemmas: dict[str, str] = field(default_factory=dict)
-    # query lemmas missing from the index (not in any document)
     missing_words: list[str] = field(default_factory=list)
     used_explicit_operators: bool = False
+    expression: str = ""
 
 
 class DocumentSelector:
-    """Select documents that satisfy a Boolean query."""
-
     def __init__(self, all_words_together: bool = True):
         self.all_words_together = all_words_together
 
     def select(self, query: str) -> SelectionResult:
-        tokens = _TOKEN_RE.findall(query.strip().lower())
-        has_operators = any(
-            t in _AND_WORDS | _OR_WORDS | _NOT_WORDS | _OPERATOR_SYMBOLS for t in tokens
-        )
+        tokens = _normalize_tokens(_TOKEN_RE.findall(query.strip().lower()))
+        has_operators = any(_is_operator(t) for t in tokens)
 
         positive_lemmas: dict[str, str] = {}
         missing_words: list[str] = []
@@ -58,13 +43,7 @@ class DocumentSelector:
         if has_operators:
             ast = _Parser(tokens).parse_expr()
         else:
-            words = [t for t in tokens if t not in ("(", ")")]
-            leaves = []
-            for w in words:
-                lemma = nlp.lemmatize_word(w) if w not in nlp.STOPWORDS else None
-                if lemma is None or lemma in nlp.STOPWORDS:
-                    continue
-                leaves.append(("WORD", lemma, w))
+            leaves = [("WORD", nlp.lemmatize_word(w), w) for w in tokens]
             if not leaves:
                 return SelectionResult(document_ids=set(), used_explicit_operators=False)
             op = "AND" if self.all_words_together else "OR"
@@ -80,12 +59,15 @@ class DocumentSelector:
             positive_lemmas=positive_lemmas,
             missing_words=sorted(set(missing_words)),
             used_explicit_operators=has_operators,
+            expression=_describe(ast),
         )
 
     def _eval(self, node, all_ids, positive_lemmas, missing_words, negated) -> set[int]:
         kind = node[0]
         if kind == "WORD":
             _, lemma, surface = node
+            if not surface:
+                return set()
             ids = _document_ids_for_lemma(lemma)
             if not ids:
                 missing_words.append(surface)
@@ -105,8 +87,6 @@ class DocumentSelector:
 
 
 class _Parser:
-    """Recursive-descent parser for Boolean expressions."""
-
     def __init__(self, tokens: list[str]):
         self.tokens = tokens
         self.pos = 0
@@ -138,7 +118,6 @@ class _Parser:
         return node
 
     def _is_implicit_and_start(self) -> bool:
-        """Two words without an explicit operator are joined with AND."""
         tok = self._peek()
         if tok is None:
             return False
@@ -159,9 +138,61 @@ class _Parser:
             if self._peek() == ")":
                 self._advance()
             return node
+        if tok is None or tok == ")" or tok in _BINARY_OPERATORS:
+            return ("WORD", "", "")
         word = self._advance()
-        lemma = nlp.lemmatize_word(word) if word else ""
-        return ("WORD", lemma, word or "")
+        return ("WORD", nlp.lemmatize_word(word), word)
+
+
+_BINARY_OPERATORS = _AND_WORDS | _OR_WORDS | {"&", "&&", "|", "||"}
+
+
+def _is_operator(token: str) -> bool:
+    return token in _BINARY_OPERATORS or token in _NOT_WORDS or token in _OPERATOR_SYMBOLS
+
+
+def _normalize_tokens(tokens: list[str]) -> list[str]:
+    merged, i = [], 0
+    while i < len(tokens):
+        pair = tuple(tokens[i:i + 2])
+        if pair in _OPERATOR_PHRASES:
+            merged.append(_OPERATOR_PHRASES[pair])
+            i += 2
+            continue
+        merged.append(tokens[i])
+        i += 1
+
+    result: list[str] = []
+    for token in merged:
+        if not _is_operator(token):
+            if token in nlp.STOPWORDS or nlp.lemmatize_word(token) in nlp.STOPWORDS:
+                continue
+        elif token in _BINARY_OPERATORS and (not result or result[-1] in _BINARY_OPERATORS
+                                             or result[-1] in _NOT_WORDS or result[-1] in ("!", "(")):
+            continue
+        elif token == ")" and result and result[-1] in _BINARY_OPERATORS:
+            result.pop()
+        result.append(token)
+
+    while result and (result[-1] in _BINARY_OPERATORS or result[-1] in _NOT_WORDS or result[-1] in ("!", "(")):
+        result.pop()
+    return result
+
+
+_OPERATOR_NAMES = {"AND": "И", "OR": "ИЛИ"}
+_PRECEDENCE = {"OR": 1, "AND": 2, "NOT": 3, "WORD": 4}
+
+
+def _describe(node, parent: int = 0) -> str:
+    kind = node[0]
+    if kind == "WORD":
+        return node[1]
+    precedence = _PRECEDENCE[kind]
+    if kind == "NOT":
+        text = "НЕ " + _describe(node[1], precedence)
+    else:
+        text = f"{_describe(node[1], precedence)} {_OPERATOR_NAMES[kind]} {_describe(node[2], precedence)}"
+    return f"({text})" if precedence < parent else text
 
 
 def _all_document_ids() -> set[int]:
